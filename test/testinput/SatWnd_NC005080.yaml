@@ -1,0 +1,257 @@
+#(C) Copyright 2021 NOAA/NWS/NCEP/EMC
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# SAID, CLAT, CLON, YEAR, MNTH, DAYS, HOUR, MINU, SECO, SWCM, SAZA, OGCE, SCCF, SWQM
+# HAMD, PRLC, WDIR, WSPD
+# GNAP, PCCF
+
+observations:
+  - obs space:
+      name: bufr
+      #obsdatain: "./testinput/bufr_read_2_dim_blocks.bufr"
+      obsdatain: "/scratch1/NCEPDEV/da/Ashley.Stanfield/IODA/ioda-converters/test/testinput/NC005080"
+
+      exports:
+        variables:
+          satelliteIdentifier:
+            query: "*/SAID"
+
+          latitude:
+            query: "*/CLAT"
+
+          longitude:
+            query: "*/CLON"
+
+          year:
+            query: "*/YEAR"
+
+          month:
+            query: "*/MNTH"
+
+          day:
+            query: "*/DAYS"
+
+          hour:
+            query: "*/HOUR"
+
+          minute:
+            query: "*/MINU"
+
+          second:
+            query: "*/SECO"
+
+          satelliteDerivedWindComputationMethod:
+            query: "*/SWCM"
+
+          satelliteZenithAngle:
+            query: "*/SAZA"
+
+          centre_1:
+            query: "*/OGCE[1]"
+
+          centre_2:
+            query: "*/GQCPRMS/OGCE[1]"
+
+          #6 more indices available.i
+
+          centre_3:
+            query: "*/OGCE[3]"
+
+          satelliteChannelCentreFrequency:
+            query: "*/SCCF"
+
+          sdmeditSatWindQualMark:
+            query: "*/SWQM"
+
+          heightAssignmentMethod_1:
+            query: "*/HAMD[1]"
+
+          heightAssignmentMethod_2:
+            query: "*/RPSEQ2/HAMD[1]"
+
+          #8 more indices available.
+
+          heightAssignmentMethod_3:
+            query: "*/RPSEQ2/HAMD[2]"
+
+          pressure_1:
+            query: "*/PRLC[1]"
+
+          pressure_2:
+            query: "*/RPSEQ2/PRLC[1]"
+
+          #8 more indices available.
+
+          pressure_3:
+            query: "*/RPSEQ2/PRLC[2]"
+
+          windDirection:
+            query: "*/WDIR"
+
+          windSpeed:
+            query: "*/WSPD"
+
+          generatingApplication_1:
+            query: "*/GQCPRMS/GNAP[1]"
+
+          generatingApplication_2:
+            query: "*/GQCPRMS/GNAP[2]"
+
+          percentConfidence_1:
+            query: "*/GQCPRMS/PCCF[1]"
+
+          percentConfidence_2:
+            query: "*/GQCPRMS/PCCF[2]"
+
+    ioda:
+      backend: netcdf
+      obsdataout: "/scratch1/NCEPDEV/da/Ashley.Stanfield/IODA/ioda-converters/test/testoutput/Out_NC005080.nc"
+
+      dimensions:
+        - name: "ncols_conf"
+          paths:
+            - "*/QCPRMS"
+
+      variables:
+        - name: "satelliteIdentifier@MetaData"
+          source: variables/satelliteIdentifier
+          longName: "Satellite Identifier"
+          units: "Code Table"
+
+        - name: "latitude@MetaData"
+          source: variables/latitude
+          longName: "Latitude (Coarse Accuracy)"
+          units: "deg"
+
+        - name: "longitude@MetaData"
+          source: variables/longitude
+          longName: "Longitude (Coarse Accuracy)"
+          units: "deg"
+
+        - name: "year@MetaData"
+          source: variables/year
+          longName: "Year"
+          units: "a"
+
+        - name: "month@MetaData"
+          source: variables/month
+          longName: "Month"
+          units: "mon"
+
+        - name: "day@MetaData"
+          source: variables/day
+          longName: "Day"
+          units: "d"
+
+        - name: "hour@MetaData"
+          source: variables/hour
+          longName: "Hour"
+          units: "h"
+
+        - name: "minute@MetaData"
+          source: variables/minute
+          longName: "Minutes"
+          units: "min"
+
+        - name: "second@MetaData"
+          source: variables/second
+          longName: "Seconds"
+          units: "s"
+
+        - name: "satelliteDerivedWindComputationMethod@MetaData"
+          source: variables/satelliteDerivedWindComputationMethod
+          longName: "Satellite Derived Wind Computation Method"
+          units: "Code Table"
+
+        - name: "satelliteZenithAngle@MetaData"
+          source: variables/satelliteZenithAngle
+          longName: "Satellite Zenith Angle"
+          units: "deg"
+
+        - name: "centre_1@MetaData"
+          source: variables/centre_1
+          longName: "Identification of Originating/Generating Centre 1"
+          units: "Common Code Table C-1"
+
+        - name: "centre_2@MetaData"
+          source: variables/centre_2
+          longName: "Identification of Originating/Generating Centre 2"
+          units: "Common Code Table C-1"
+
+        - name: "centre_3@MetaData"
+          source: variables/centre_3
+          longName: "Identification of Originating/Generating Centre 3"
+          units: "Common Code Table C-1"
+
+        - name: "satelliteChannelCentreFrequency@MetaData"
+          source: variables/satelliteChannelCentreFrequency
+          longName: "Satellite Channel Centre Frequency"
+          units: "Hz"
+
+        - name: "sdmeditSatWindQualMark@MetaData"
+          source: variables/sdmeditSatWindQualMark
+          longName: "SDMEDIT Satellite Wind Quality Mark"
+          units: "id"
+
+        - name: "heightAssignmentMethod_1@MetaData"
+          source: variables/heightAssignmentMethod_1
+          longName: "Height Assignment Method 1"
+          units: "Code Table"
+
+        - name: "heightAssignmentMethod_2@MetaData"
+          source: variables/heightAssignmentMethod_2
+          longName: "Height Assignment Method 2"
+          units: "Code Table"
+
+        - name: "heightAssignmentMethod_3@MetaData"
+          source: variables/heightAssignmentMethod_3
+          longName: "Height Assignment Method 3"
+          units: "Code Table"
+
+        - name: "pressure_1@MetaData"
+          source: variables/pressure_1
+          longName: "Pressure 1"
+          units: "Pa"
+
+        - name: "pressure_2@MetaData"
+          source: variables/pressure_2
+          longName: "Pressure 2"
+          units: "Pa"
+
+        - name: "pressure_3@MetaData"
+          source: variables/pressure_3
+          longName: "Pressure 3"
+          units: "Pa"
+
+        - name: "windDirection@MetaData"
+          source: variables/windDirection
+          longName: "Wind Direction"
+          units: "deg"
+
+        - name: "windSpeed@MetaData"
+          source: variables/windSpeed
+          longName: "Wind Speed"
+          units: "m/s"
+
+        - name: "generatingApplication_1@MetaData"
+          source: variables/generatingApplication_1
+          longName: "Generating Application 1"
+          units: "Code Table defined by originating/generating centre"
+
+        - name: "generatingApplication_2@MetaData"
+          source: variables/generatingApplication_2
+          longName: "Generating Application 2"
+          units: "Code Table defined by originating/generating centre"
+
+        - name: "percentConfidence_1@MetaData"
+          source: variables/percentConfidence_1
+          longName: "Per Cent Confidence 1"
+          units: "%"
+
+        - name: "percentConfidence_2@PerConfidence"
+          source: variables/percentConfidence_2
+          longName: "Per Cent Confidence 2"
+          units: "%"
+
