@@ -13,11 +13,11 @@ observations:
         variables:
           timestamp:
             datetime:
-              year: "[NC000007/YEAR[1],*/YEAR]"
-              month: "[NC000007/MNTH[1],*/MNTH]"
-              day: "[NC000007/DAYS[1], */DAYS]"
-              hour: "[NC000007/HOUR[1], */HOUR]"
-              minute: "[NC000007/MINU[1], */MINU]"
+              year: "*/YEAR[1]"
+              month: "*/MNTH[1]"
+              day: "*/DAYS[1]"
+              hour: "*/HOUR[1]"
+              minute: "*/MINU[1]"
 
           longitude:
             query: "[*/CLON, */CLONH]"
