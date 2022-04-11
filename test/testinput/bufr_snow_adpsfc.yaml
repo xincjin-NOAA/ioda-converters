@@ -13,11 +13,19 @@ observations:
         variables:
           timestamp:
             datetime:
+<<<<<<< HEAD
               year: "*/YEAR[1]"
               month: "*/MNTH[1]"
               day: "*/DAYS[1]"
               hour: "*/HOUR[1]"
               minute: "*/MINU[1]"
+=======
+              year: "[NC000007/YEAR[1],*/YEAR]"
+              month: "[NC000007/MNTH[1],*/MNTH]"
+              day: "[NC000007/DAYS[1], */DAYS]"
+              hour: "[NC000007/HOUR[1], */HOUR]"
+              minute: "[NC000007/MINU[1], */MINU]"
+>>>>>>> feature/query_cxx
 
           longitude:
             query: "[*/CLON, */CLONH]"
@@ -49,10 +57,16 @@ observations:
       obsdataout: "./testrun/gdas.t06z.adpsfc_snow.tm00.nc"
 
       variables:
-        - name: "datetime@MetaData"
+        - name: "dateTime@MetaData"
           source: variables/timestamp
-          longName: "Datetime"
-          units: "datetime"
+          longName: "dateTime"
+          units: "seconds since 1970-01-01T00:00:00Z"
+
+        - name: "stationIdentification@MetaData"
+          source: variables/stationIdentification
+          dimensions: ["nlocs"]
+          longName: "Report Number"
+          units: "string"
 
         - name: "stationIdentification@MetaData"
           source: variables/stationIdentification
