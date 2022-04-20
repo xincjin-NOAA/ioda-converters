@@ -27,6 +27,7 @@ loc_vars = [
     'MetaData/station_id',
     'MetaData/height',
     'MetaData/datetime',
+    'MetaData/dateTime'
 ]
 
 
@@ -40,7 +41,8 @@ def combine_obsspace(FileList, OutFile, GeoDir):
     for f in FileList:
         obsspace = ios.ObsSpace(f)
         for vname in obsspace.variables:
-            if vname in loc_vars:
+            #if vname in loc_vars:
+            if 'MetaData' in vname:
                 if vname not in LocVarNames:
                     LocVarNames.append(vname)
                     VarAttrFiles[vname] = f
@@ -64,7 +66,7 @@ def combine_obsspace(FileList, OutFile, GeoDir):
         if attr not in ['_ioda_layout']:
             globalAttrs[attr] = obsspace.read_attr(attr)
     # add a new global attribute
-    globalAttrs['input_files'] = ';'.join(FileList)
+    globalAttrs['input_files'] = FileList[0]+' to '+FileList[-1]#';'.join(FileList)
 
     # variable attributes will come from the first file that had said variable
     for fullvname in LocVarNames + AllVarNames:
@@ -105,6 +107,9 @@ def combine_obsspace(FileList, OutFile, GeoDir):
                     tmpdata = tmpdata.astype('<U22')
                     tmpdata = [x.replace(' ', 'T') + 'Z' for x in tmpdata]
                     tmpdata = np.array(tmpdata).astype('<U22')
+                #need to modified /work/noaa/da/fhan/JEDI/src/fv3-bundle_internal/build/lib/python3.9/pyioda/ioda_obs_space/__init__.py
+                #to suppress 'MetaData/dateTime' transform from int to datetime, it is causing problems in np.unique
+                #suppress condition in "if 'since' in varunits:" around l400
                 tmpvardata.append(tmpdata)
                 del _var
                 del obsspace
@@ -165,15 +170,18 @@ def combine_obsspace(FileList, OutFile, GeoDir):
         GeoVarNames31 = []
         for f in FileList:
             inob = f.split('/')[-1]
-            ingeo = inob.replace('obs', 'geoval')
+            #ingeo = inob.replace('obs', 'geoval')
+            ingeo = inob.replace('hofx','geoval')
             g = GeoDir+'/'+ingeo
             GeoFileList.append(g)
         for f in GeoFileList:
             obsspace = ios.ObsSpace(f)
-            nlevs = obsspace.Variable('nlevs').dimsizes[0]
-            ninterfaces = obsspace.Variable('ninterfaces').dimsizes[0]
+            #nlevs = obsspace.Variable('nlevs').dimsizes[0]
+            #ninterfaces = obsspace.Variable('ninterfaces').dimsizes[0]
+            nlevs = 64
+            ninterfaces = 65
             for vname in obsspace.variables:
-                if vname not in ['nlocs', 'nlevs', 'ninterfaces'] and 'maxstrlen' not in vname:
+                if vname not in ['nlocs', 'nlevs', 'ninterfaces'] and 'maxstrlen' not in vname and '_nval' not in vname:
                     _var = obsspace.Variable(vname)
                     if len(_var.dimsizes) == 1 and vname not in GeoVarNames2:
                         GeoVarNames2.append(vname)
@@ -192,6 +200,9 @@ def combine_obsspace(FileList, OutFile, GeoDir):
                         pass
                     del _var
             del obsspace
+        if GeoVarNames2 + GeoVarNames3 + GeoVarNames31 == []:
+            return
+
         # figure out variable type and dims
         for vname in GeoVarNames2 + GeoVarNames3 + GeoVarNames31:
             iodafile = GeoVarFiles[vname]
@@ -229,11 +240,12 @@ def combine_obsspace(FileList, OutFile, GeoDir):
             tmpgeoidx = np.hstack(tmpgeoidx)
             GeoVarData2.append(tmpgeodata)
             GeoVarIdx2.append(tmpgeoidx)
-        GeoVarData2 = np.vstack(GeoVarData2)
-        GeoVarIdx2 = np.vstack(GeoVarIdx2)
-        GeoVarData2 = np.transpose(GeoVarData2)
-        GeoVarIdx2 = np.transpose(GeoVarIdx2)
-        GeoVarUnique2 = np.empty((len(idx), len(GeoVarData2[0])))
+        if GeoVarNames2 != []:
+            GeoVarData2 = np.vstack(GeoVarData2)
+            GeoVarIdx2 = np.vstack(GeoVarIdx2)
+            GeoVarData2 = np.transpose(GeoVarData2)
+            GeoVarIdx2 = np.transpose(GeoVarIdx2)
+            GeoVarUnique2 = np.empty((len(idx), len(GeoVarData2[0])))
 
         # 3D fields on full levels
         for idx2, v in enumerate(GeoVarNames3):
@@ -255,9 +267,10 @@ def combine_obsspace(FileList, OutFile, GeoDir):
             tmpgeoidx = np.vstack(tmpgeoidx)
             GeoVarData3.append(tmpgeodata)
             GeoVarIdx3.append(tmpgeoidx)
-        GeoVarData3 = np.dstack(GeoVarData3)
-        GeoVarIdx3 = np.dstack(GeoVarIdx3)
-        GeoVarUnique3 = np.empty((len(idx), len(GeoVarData3[0]), len(GeoVarData3[0, 0, :])))
+        if GeoVarNames3 != []:
+            GeoVarData3 = np.dstack(GeoVarData3)
+            GeoVarIdx3 = np.dstack(GeoVarIdx3)
+            GeoVarUnique3 = np.empty((len(idx), len(GeoVarData3[0]), len(GeoVarData3[0, 0, :])))
 
         # 3D fields on half levels
         for idx2, v in enumerate(GeoVarNames31):
@@ -279,41 +292,52 @@ def combine_obsspace(FileList, OutFile, GeoDir):
             tmpgeoidx = np.vstack(tmpgeoidx)
             GeoVarData31.append(tmpgeodata)
             GeoVarIdx31.append(tmpgeoidx)
-        GeoVarData31 = np.dstack(GeoVarData31)
-        GeoVarIdx31 = np.dstack(GeoVarIdx31)
-        GeoVarUnique31 = np.empty((len(idx), len(GeoVarData31[0]), len(GeoVarData31[0, 0, :])))
+        if GeoVarNames31 != [] :
+            GeoVarData31 = np.dstack(GeoVarData31)
+            GeoVarIdx31 = np.dstack(GeoVarIdx31)
+            GeoVarUnique31 = np.empty((len(idx), len(GeoVarData31[0]), len(GeoVarData31[0, 0, :])))
 
         # arrange the output data
-        for ii, jj in np.ndindex(GeoVarData2.shape):
-            j = GeoVarIdx2[ii, jj]
-            i = inv[ii]
-            if GeoVarData2[ii, jj] != iconv.get_default_fill_val('float32'):
-                GeoVarUnique2[i, j] = GeoVarData2[ii, jj]
-        for idx2, v in enumerate(GeoVarNames2):
-            GeoOutData[v] = GeoVarUnique2[:, idx2].astype(GeoVarTypes[v])
-        for ii, kk, jj in np.ndindex(GeoVarData3.shape):
-            j = GeoVarIdx3[ii, kk, jj]
-            i = inv[ii]
-            if GeoVarData3[ii, kk, jj] != iconv.get_default_fill_val('float32'):
-                GeoVarUnique3[i, kk, j] = GeoVarData3[ii, kk, jj]
-        for idx2, v in enumerate(GeoVarNames3):
-            GeoOutData[v] = GeoVarUnique3[..., idx2].astype(GeoVarTypes[v])
-        for ii, kk, jj in np.ndindex(GeoVarData31.shape):
-            j = GeoVarIdx31[ii, kk, jj]
-            i = inv[ii]
-            if GeoVarData31[ii, kk, jj] != iconv.get_default_fill_val('float32'):
-                GeoVarUnique31[i, kk, j] = GeoVarData31[ii, kk, jj]
-        for idx2, v in enumerate(GeoVarNames31):
-            GeoOutData[v] = GeoVarUnique31[..., idx2].astype(GeoVarTypes[v])
+        if GeoVarNames2 != []:
+            for ii, jj in np.ndindex(GeoVarData2.shape):
+                j = GeoVarIdx2[ii, jj]
+                i = inv[ii]
+                if GeoVarData2[ii, jj] != iconv.get_default_fill_val('float32'):
+                    GeoVarUnique2[i, j] = GeoVarData2[ii, jj]
+            for idx2, v in enumerate(GeoVarNames2):
+                GeoOutData[v] = GeoVarUnique2[:, idx2].astype(GeoVarTypes[v])
+        if GeoVarNames3 != []:
+            for ii, kk, jj in np.ndindex(GeoVarData3.shape):
+                j = GeoVarIdx3[ii, kk, jj]
+                i = inv[ii]
+                if GeoVarData3[ii, kk, jj] != iconv.get_default_fill_val('float32'):
+                    GeoVarUnique3[i, kk, j] = GeoVarData3[ii, kk, jj]
+            for idx2, v in enumerate(GeoVarNames3):
+                GeoOutData[v] = GeoVarUnique3[..., idx2].astype(GeoVarTypes[v])
+        if GeoVarNames31 != []:
+            for ii, kk, jj in np.ndindex(GeoVarData31.shape):
+                j = GeoVarIdx31[ii, kk, jj]
+                i = inv[ii]
+                if GeoVarData31[ii, kk, jj] != iconv.get_default_fill_val('float32'):
+                    GeoVarUnique31[i, kk, j] = GeoVarData31[ii, kk, jj]
+            for idx2, v in enumerate(GeoVarNames31):
+                GeoOutData[v] = GeoVarUnique31[..., idx2].astype(GeoVarTypes[v])
 
         # write out the file
         GeoDimDict = {}
         GeoGlobalAttrs = {}
-        GeoDimDict['nlocs'] = len(GeoVarUnique2)
+        if GeoVarNames2 != []:
+            GeoDimDict['nlocs'] = len(GeoVarUnique2)
+        elif GeoVarNames3 != []:
+            GeoDimDict['nlocs'] = len(GeoVarUnique3)
+        elif GeoVarNames31 != []:
+            GeoDimDict['nlocs'] = len(GeoVarUnique31)
+        #GeoDimDict['nlocs'] = len(GeoVarUnique2)
         GeoDimDict['nlevs'] = nlevs
         GeoDimDict['ninterfaces'] = ninterfaces
-        OutGeoFile = OutFile.replace('obs', 'geoval')
-        GeoGlobalAttrs['input_files'] = ';'.join(GeoFileList)
+        #OutGeoFile = OutFile.replace('obs', 'geoval')
+        OutGeoFile = OutFile.replace('hofx','geoval')
+        GeoGlobalAttrs['input_files'] = GeoFileList[0]+' to '+GeoFileList[-1]#';'.join(GeoFileList)
         gwriter = iconv.IodaWriter(OutGeoFile, GeoLocKeyList, GeoDimDict)
         gwriter.BuildIoda(GeoOutData, GeoVarDims, {}, GeoGlobalAttrs, geovals=True)
 
