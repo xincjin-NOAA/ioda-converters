@@ -27,12 +27,12 @@ import ioda_conv_engines as iconv
 
 class Observation(object):
 
-    def __init__(self, filename, thin, date):
+    def __init__(self, filename, date, pole):
 
         self.filename = filename
-        self.thin = thin
         self.date = date
         self.data = DefaultOrderedDict(lambda: DefaultOrderedDict(dict))
+        self.pole = pole
         self._read(date)
 
     def _read(self, date):
@@ -45,20 +45,21 @@ class Observation(object):
         qc = ncd.variables['quality'][:]
         ncd.close()
 
+        if self.pole == 'north':
+            goodobs = np.where( ((qc == 1) | (qc == 4)) & (lats>45.0) )
+        if self.pole == 'south':
+            goodobs = np.where( ((qc == 1) | (qc == 4)) & (lats<-40.0) )
+
+        datein = datein[goodobs]
+        timein = timein[goodobs]
+        lons = lons[goodobs]
+        lats = lats[goodobs]
+        vals = vals[goodobs]
+        qc = qc[goodobs]
+
         valKey = vName, iconv.OvalName()
         errKey = vName, iconv.OerrName()
         qcKey = vName, iconv.OqcName()
-
-        # apply thinning mask
-        if self.thin > 0.0:
-            mask_thin = np.random.uniform(size=len(lons)) > self.thin
-            datein = datein[mask_thin]
-            timein = timein[mask_thin]
-            lons = lons[mask_thin]
-            lats = lats[mask_thin]
-            vals = vals[mask_thin]
-            qc = qc[mask_thin]
-
         date2 = int(date.strftime("%Y%m%d"))
         for i in range(len(lons)):
             if datein[i] == date2:
@@ -71,8 +72,7 @@ class Observation(object):
                 locKey = lats[i], lons[i], obs_date.strftime("%Y-%m-%dT%H:%M:%SZ")
                 self.data[locKey][valKey] = vals[i]
                 self.data[locKey][errKey] = 0.1
-                self.data[locKey][qcKey] = qc[i]
-
+                self.data[locKey][qcKey] = 0
 
 vName = "sea_ice_area_fraction"
 
@@ -106,13 +106,12 @@ def main():
         '-d', '--date',
         help="base date for the center of the window",
         metavar="YYYYMMDDHH", type=str, required=True)
+    required.add_argument(
+        '-p', '--pole',
+        help="north or south",
+        type=str, required=True)
 
     optional = parser.add_argument_group(title='optional arguments')
-    optional.add_argument(
-        '-t', '--thin',
-        help="percentage of random thinning, from 0.0 to 1.0. Zero indicates"
-             " no thinning is performed. (default: %(default)s)",
-        type=float, default=0.0)
 
     args = parser.parse_args()
     fdate = datetime.strptime(args.date, '%Y%m%d%H')
@@ -120,7 +119,7 @@ def main():
         vName: ['nlocs'],
     }
     # Read in
-    ice = Observation(args.input, args.thin, fdate)
+    ice = Observation(args.input, fdate, args.pole)
 
     # write them out
     ObsVars, nlocs = iconv.ExtractObsData(ice.data, locationKeyList)
