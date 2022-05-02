@@ -75,6 +75,13 @@ def dummy_err(obs_values, var_name):
     obs_errs = 0.5 * obs_values
     return obs_errs
 
+def depth_err(obs_values, var_name):
+    obs_errs = (0.0 * obs_values) + 0.04
+    return obs_errs
+
+def swe_err(obs_values, var_name):
+    obs_errs = (0.0 * obs_values) + 10.0
+    return obs_errs
 
 def mask_nans(arr):
     arr2 = arr.astype('float32')
