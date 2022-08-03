@@ -81,7 +81,7 @@ class mls(object):
         self.outdata[('level', 'MetaData')] = []
         self._setVarDict('mole_fraction_of_ozone_in_air')
         self.outdata[self.varDict['mole_fraction_of_ozone_in_air']['valKey']] = []
-        if(self.qcOn):
+        if(self.errorOn):
             self.outdata[self.varDict['mole_fraction_of_ozone_in_air']['errKey']] = []
 
         self._read()
@@ -89,7 +89,7 @@ class mls(object):
     # set ioda variable keys
     def _setVarDict(self, iodavar):
         self.varDict[iodavar]['valKey'] = iodavar, iconv.OvalName()
-        if(self.qcOn):
+        if(self.errorOn):
             self.varDict[iodavar]['errKey'] = iodavar, iconv.OerrName()
         self.varDict[iodavar]['qcKey'] = iodavar, iconv.OqcName()
 
@@ -234,9 +234,9 @@ class mls(object):
             if(self.errorOn):
                 print("Calculating Error.")
                 d['errKey'] = []
-                for ival, val in enumerate(d['valKey']):
+                for ival,val in enumerate(d['valKey']):
                     d['errKey'].append(self._calc_error(
-                        val, d['precision'][ival], d['level'][ival]-1))
+                        val,d['precision'][ival],d['level'][ival]-1))
             for v in list(d.keys()):
                 if(v != 'valKey' and v != 'errKey'):
                     self.outdata[(v, 'MetaData')].extend(d[v])
@@ -255,7 +255,7 @@ class mls(object):
                 self.outdata[k] = self.outdata[k].astype('float32')
             elif(self.outdata[k].dtype == 'int64' and k != ('dateTime', 'MetaData')):
                 self.outdata[k] = self.outdata[k].astype('int32')
-        self.outdata[('dateTime', 'MetaData')] = self.outdata[('dateTime', 'MetaData')].astype(np.int64)
+        self.outdata[('dateTime', 'MetaData')].astype(np.int64)
         self.outdata[('longitude', 'MetaData')] = self.outdata[('longitude', 'MetaData')] % 360
 # end mls object.
 
