@@ -1538,15 +1538,20 @@ class Ozone(BaseGSI):
                 LocVars.append(ncv)
 
         nlocs = self.nobs
-        vname = "integrated_layer_ozone_in_air"
         if (self.sensor in ["ompslp", "mls55"]):
             vname = "mole_fraction_of_ozone_in_air"
+            varAttrs[varDict[vname]['valKey']]['units'] = 'mol mol-1'
+            varAttrs[varDict[vname]['errKey']]['units'] = 'mol mol-1'
+        else:
+            vname = "integrated_layer_ozone_in_air"
+            varAttrs[varDict[vname]['valKey']]['units'] = 'DU'
+            varAttrs[varDict[vname]['errKey']]['units'] = 'DU'
+
         varDict[vname]['valKey'] = vname, iconv.OvalName()
         varDict[vname]['errKey'] = vname, iconv.OerrName()
         varDict[vname]['qcKey'] = vname, iconv.OqcName()
         VarDims[vname] = ['nlocs']
-        varAttrs[varDict[vname]['valKey']]['units'] = 'mol mol-1'
-        varAttrs[varDict[vname]['errKey']]['units'] = 'mol mol-1'
+
         varAttrs[varDict[vname]['qcKey']]['units'] = 'unitless'
         varAttrs[varDict[vname]['valKey']]['_FillValue'] = self.FLOAT_FILL
         varAttrs[varDict[vname]['errKey']]['_FillValue'] = self.FLOAT_FILL
