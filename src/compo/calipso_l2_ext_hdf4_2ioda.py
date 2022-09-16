@@ -198,8 +198,8 @@ def get_data(f, obs_data, meta_dict):
     obs_data[('ExtinctionCoeff_532', "ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_532").get(),dtype='float32')
     obs_data[('ExtinctionCoeff_1064',"ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_1064").get(),dtype='float32')
 
-    obs_data[('Extinction_QC_Flag_532', "ObsValue")] = np.array(f.select("Extinction_QC_Flag_532").get(),dtype='int16')
-    obs_data[('Extinction_QC_Flag_1064',"ObsValue")] = np.array(f.select("Extinction_QC_Flag_1064").get(),dtype='int16')
+    obs_data[('Extinction_QC_Flag_532', "PreQC")] = np.array(f.select("Extinction_QC_Flag_532").get(),dtype='int32')
+    obs_data[('Extinction_QC_Flag_1064',"PreQC")] = np.array(f.select("Extinction_QC_Flag_1064").get(),dtype='int32')
 
     # For PreQC, the value of -9999. and -333. of Extinction and Backscatter can be rejected.
 
