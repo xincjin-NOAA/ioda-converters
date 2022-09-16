@@ -192,9 +192,17 @@ def get_data(f, obs_data, meta_dict):
   
     nlocs = len(obs_data[('latitude', 'MetaData')])
     obs_data[('satelliteId', 'MetaData')] = np.full((nlocs), CALIPSO_WMO_sat_ID, dtype='int32')
+
+    # Convert Profile_Time to YYYY-MM-DDTHH:MM:SSZ format
+    # Need to update to epoch style
+    basetime=datetime(1993,1,1)
+    tmp=np.array(f.select('Profile_Time').get()[:,1],dtype='int32')+int(basetime.timestamp())
+    tmpdf=pd.DataFrame({'datetime':tmp})
+    profile_time=(pd.to_datetime(tmpdf['datetime'],unit='s')).dt.strftime('%Y-%m-%dT%H:%M:%SZ').values
+    #print(profile_time)
     
     obs_data[('Lidar_Data_Altitudes', 'MetaData')] = np.array(meta_dict['Lidar_Data_Altitudes'],dtype='float32')
-    obs_data[('profileTime', 'MetaData')] = np.array(f.select('Profile_Time').get()[:,0], dtype='float32')
+    obs_data[('datetime', 'MetaData')] = np.array(profile_time, dtype=object)
     obs_data[('Pressure', 'MetaData')] = np.array(f.select('Pressure').get(), dtype='float32')
     obs_data[('Temperature', 'MetaData')] = np.array(f.select('Temperature').get(), dtype='float32')
 
@@ -205,8 +213,8 @@ def get_data(f, obs_data, meta_dict):
     obs_data[('BackscatterCoeff_532', "ObsError")] = np.full((nlocs,nlevs),1,dtype='float32')
     obs_data[('BackscatterCoeff_1064',"ObsError")] = np.full((nlocs,nlevs),1,dtype='float32')
 
-    obs_data[('QC_Flag', "ObsValue")] = np.array(f.select("QC_Flag").get(),dtype='int32')
-    obs_data[('QC_Flag_2',"ObsValue")] = np.array(f.select("QC_Flag_2").get(),dtype='int32')
+    obs_data[('QC_Flag',  "PreQC")] = np.array(f.select("QC_Flag").get(),dtype='int32')
+    obs_data[('QC_Flag_2',"PreQC")] = np.array(f.select("QC_Flag_2").get(),dtype='int32')
 
     # For PreQC, the value of -9999. and -333. of Extinction and Backscatter can be rejected.
 
