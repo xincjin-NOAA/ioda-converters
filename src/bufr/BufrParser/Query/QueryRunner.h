@@ -83,8 +83,6 @@ namespace bufr {
 
         std::unordered_map<std::string, Targets> targetCache_;
         std::unordered_map<std::string, std::shared_ptr<__details::ProcessingMasks>> maskCache_;
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> unitCache_;
-
 
         /// \brief Look for the list of targets for the currently active BUFR message subset that
         /// apply to the QuerySet and cache them. Processing mask information is also collected in

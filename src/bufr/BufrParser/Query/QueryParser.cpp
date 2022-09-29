@@ -14,15 +14,15 @@
 
 namespace Ingester {
 namespace bufr {
-    std::vector<Query> QueryParser::parse(const std::string& queryStr)
+    Query QueryParser::parse(const std::string& queryStr)
     {
-        std::vector<Query> queries;
+        std::vector<SubQuery> queries;
         for (auto& subStr : QueryParser::splitMultiquery(queryStr))
         {
             queries.emplace_back(QueryParser::splitQueryStr(subStr));
         }
 
-        return queries;
+        return { queries };
     }
 
     std::vector<std::string> QueryParser::splitMultiquery(const std::string &query)

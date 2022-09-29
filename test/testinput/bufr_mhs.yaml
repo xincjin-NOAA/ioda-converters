@@ -44,6 +44,11 @@ observations:
             query: "[*/BRITCSTC/CHNM, */BRIT/CHNM]"
           radiance:
             query: "[*/BRITCSTC/TMBR, */BRIT/TMBR]"
+          tempobserror:
+            constant:
+              value: 12.34
+              path: "[*/BRITCSTC, */BRIT]"
+
     
     ioda:
       backend: netcdf
@@ -55,6 +60,8 @@ observations:
             - "*/BRIT"
             - "*/BRITCSTC"
           source: variables/channels
+
+
 
       globals: 
         - name: "sensorCentralFrequency@MetaData"

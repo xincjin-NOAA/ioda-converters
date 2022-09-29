@@ -17,6 +17,8 @@
 namespace Ingester {
 namespace bufr {
 
+    struct
+
     struct NodeData {
         std::vector<double> values;
         std::vector<int> counts;

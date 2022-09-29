@@ -13,7 +13,7 @@
 namespace Ingester {
 namespace bufr {
 
-    struct Query
+    struct SubQuery
     {
         std::string queryStr;
         std::string subset;
@@ -21,12 +21,17 @@ namespace bufr {
         int index;
     };
 
+    struct Query
+    {
+        std::vector<SubQuery> subQueries;
+    };
+
     /// \brief Parses a user supplied query string into its component parts.
     /// \note Will be refactored to properly tokenize the query string.
     class QueryParser
     {
      public:
-        static std::vector<Query> parse(const std::string& queryStr);
+        static SubQuery parse(const std::string& queryStr);
 
      private:
         /// \brief Split a multi query (ex: ["*/CLONH", "*/CLON"]) into a vector of single queries.
@@ -35,7 +40,7 @@ namespace bufr {
 
         /// \brief Split a single query (ex: "*/ROSEQ1/ROSEQ2/PCCF[2]") into its component parts.
         /// \param query The query to split.
-        static Query splitQueryStr(const std::string& query);
+        static SubQuery splitQueryStr(const std::string& query);
 
      private:
         /// \brief Private constructor.
