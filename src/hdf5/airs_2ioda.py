@@ -12,9 +12,12 @@ from pathlib import Path
 import os.path
 from os import getcwd
 import sys
+import pdb
 
 import h5py
 import numpy as np
+
+from atms_netcdf_hdf5_2ioda import write_obs_2ioda
 
 IODA_CONV_PATH = Path(__file__).parent/"@SCRIPT_LIB_PATH@"
 if not IODA_CONV_PATH.is_dir():
@@ -24,9 +27,20 @@ import ioda_conv_engines as iconv
 from orddicts import DefaultOrderedDict
 
 # globals
-SNPP_WMO_sat_ID = 224
-NOAA20_WMO_sat_ID = 225
-NOAA21_WMO_sat_ID = 226
+AQUA_WMO_sat_ID = 79
+
+# and more globals
+missing_value = 9.96921e+36
+int_missing_value = -2147483647
+
+GlobalAttrs = {
+    "platformCommonName": "ATMS",
+    "platformLongDescription": "ATMS Brightness Temperature Data",
+    "sensorCentralFrequency": [23.8,
+                               31.4, 50.3, 51.76, 52.8, 53.596, 54.40, 54.94, 55.50,
+                               57.2903, 57.2903, 57.2903, 57.2903, 57.2903, 57.2903,
+                               88.20, 165.5, 183.31, 183.31, 183.31, 183.31, 183.31],
+}
 
 locationKeyList = [
     ("latitude", "float"),
@@ -64,57 +78,9 @@ def main(args):
         else:
             obs_data = file_obs_data
 
-    GlobalAttrs = get_global_attributes('atms')
-    
-    write_obs_2ioda(obs_data)
+    GlobalAttrs = get_global_attributes('airs')
 
-def write_obs_2ioda(obs_data, GlobalAttrs):
-# V2 nlocs_int32 = np.array(len(obs_data[('latitude', 'MetaData')]), dtype='int32')
-    nlocs_int32 = np.array(len(obs_data[('latitude', 'MetaData')]), dtype='float32')  # this is float32 in old convention
-    nlocs = nlocs_int32.item()
-    nchans = len(obs_data[('channelNumber', 'MetaData')])
-
-    # prepare global attributes we want to output in the file,
-    # in addition to the ones already loaded in from the input file
-    GlobalAttrs['date_time_string'] = dtg.strftime("%Y-%m-%dT%H:%M:%SZ")
-    date_time_int32 = np.array(int(dtg.strftime("%Y%m%d%H")), dtype='int32')
-    GlobalAttrs['date_time'] = date_time_int32.item()
-    GlobalAttrs['converter'] = os.path.basename(__file__)
-
-    # pass parameters to the IODA writer
-# V2     'brightnessTemperature': ['nlocs', 'nchans']
-    VarDims = {
-        'brightness_temperature': ['nlocs', 'nchans'],
-        'channelNumber': ['nchans'],
-    }
-
-    DimDict = {
-        'nlocs': nlocs,
-        'nchans': obs_data[('channelNumber', 'MetaData')],
-    }
-    writer = iconv.IodaWriter(output_filename, locationKeyList, DimDict)
-
-    VarAttrs = DefaultOrderedDict(lambda: DefaultOrderedDict(dict))
-# V2 VarAttrs[('brightnessTemperature', 'ObsValue')]['units'] = 'K'
-# V2 VarAttrs[('brightnessTemperature', 'ObsError')]['units'] = 'K'
-# V2 VarAttrs[('brightnessTemperature', 'PreQC')]['units'] = 'unitless'
-    VarAttrs[('brightness_temperature', 'ObsValue')]['units'] = 'K'
-    VarAttrs[('brightness_temperature', 'ObsError')]['units'] = 'K'
-    VarAttrs[('brightness_temperature', 'PreQC')]['units'] = 'unitless'
-
-    missing_value = 9.96921e+36
-    int_missing_value = -2147483647
-# V2 VarAttrs[('brightnessTemperature', 'ObsValue')]['_FillValue'] = missing_value
-# V2 VarAttrs[('brightnessTemperature', 'ObsError')]['_FillValue'] = missing_value
-# V2 VarAttrs[('brightnessTemperature', 'PreQC')]['_FillValue'] = int_missing_value
-    VarAttrs[('brightness_temperature', 'ObsValue')]['_FillValue'] = missing_value
-    VarAttrs[('brightness_temperature', 'ObsError')]['_FillValue'] = missing_value
-    VarAttrs[('brightness_temperature', 'PreQC')]['_FillValue'] = int_missing_value
-
-#   there can be more than one input file
-#   GlobalAttrs['converter'] = os.path.basename(__file__)
-    # final write to IODA file
-    writer.BuildIoda(obs_data, VarDims, VarAttrs, GlobalAttrs)
+    write_obs_2ioda(obs_data, GlobalAttrs)
 
 
 def get_data_from_files(zfiles):
@@ -126,48 +92,13 @@ def get_data_from_files(zfiles):
     afile = zfiles
     if True:
         f = h5py.File(afile, 'r')
-
-        path, file = os.path.split(afile)
-        if afile[-3:] == 'nc4':
-            g = h5py.File(afile, 'r')
-        else:
-            geo_file = file.replace('SATMS', 'GATMO')
-            ftype, sat, date, time, end_time, orbit, _, _, _ = file.split('_')
-            geo_search = '_'.join(['GATMO', sat, date, time, end_time, orbit, '*.h5'])
-            geo_search = os.path.join(path, geo_search)
-
-            gfile = glob.glob(geo_search)
-            if (len(gfile) > 0):
-                g = h5py.File(gfile[0], 'r')
-            else:
-                print("could not find geofile matching: %s" % filename)
-                print("tried searching geofile: %s" % geo_search)
-                sys.exit()
-
         obs_data = get_data(f, g, obs_data)
         f.close()
-        g.close()
 
     return obs_data
 
 
-def get_data(f, g, obs_data):
-
-    # NOAA CLASS h5 SDR-GEO keys
-    # 'BeamLatitude', 'BeamLongitude', 'Height', 'Latitude', 'Longitude', 'MidTime', 'PadByte1',
-    # 'QF1_ATMSSDRGEO', 'SCAttitude', 'SCPosition', 'SCVelocity', 'SatelliteAzimuthAngle',
-    # 'SatelliteRange', 'SatelliteZenithAngle', 'SolarAzimuthAngle', 'SolarZenithAngle', 'StartTime'
-
-    # NOAA CLASS h5 SDR-Data keys
-    # 'BeamTime', 'BrightnessTemperature', 'BrightnessTemperatureFactors', 'GainCalibration',
-    # 'InstrumentMode', 'NEdTCold', 'NEdTWarm', 'PadByte1', 'QF10_GRAN_HEALTHSTATUS',
-    # 'QF11_GRAN_QUADRATICCORRECTION', 'QF12_SCAN_KAVPRTCONVERR', 'QF13_SCAN_WGPRTCONVERR',
-    # 'QF14_SCAN_SHELFPRTCONVERR', 'QF15_SCAN_KAVPRTTEMPLIMIT', 'QF16_SCAN_WGPRTTEMPLIMIT',
-    # 'QF17_SCAN_KAVPRTTEMPCONSISTENCY', 'QF18_SCAN_WGPRTTEMPCONSISTENCY', 'QF19_SCAN_ATMSSDR',
-    # 'QF1_GRAN_HEALTHSTATUS', 'QF20_ATMSSDR', 'QF21_ATMSSDR', 'QF22_ATMSSDR',
-    # 'QF2_GRAN_HEALTHSTATUS', 'QF3_GRAN_HEALTHSTATUS', 'QF4_GRAN_HEALTHSTATUS',
-    # 'QF5_GRAN_HEALTHSTATUS', 'QF6_GRAN_HEALTHSTATUS', 'QF7_GRAN_HEALTHSTATUS',
-    # 'QF8_GRAN_HEALTHSTATUS', 'QF9_GRAN_HEALTHSTATUS'
+def get_data(f, obs_data):
 
     # NASA GES DISC keys
     # 'antenna', 'antenna_len', 'antenna_temp', 'antenna_temp_qc', 'asc_flag', 'asc_node_local_solar_time',
@@ -184,6 +115,7 @@ def get_data(f, g, obs_data):
     # 'spatial_lbl_len', 'subsat_lat', 'subsat_lon', 'sun_glint_dist', 'sun_glint_lat', 'sun_glint_lon',
     # 'surf_alt', 'surf_alt_sdev', 'utc_tuple', 'utc_tuple_lbl', 'utc_tuple_lbl_len', 'view_ang', 'warm_nedt', 'xtrack'
 
+    pdb.set_trace()
     WMO_sat_ID = get_WMO_satellite_ID(f.filename)
 
     # example: dimension ( 180, 96 ) == dimension( nscan, nbeam_pos )
@@ -239,16 +171,7 @@ def get_data(f, g, obs_data):
 def get_WMO_satellite_ID(filename):
 
     afile = os.path.basename(filename)
-    if 'SNPP' in afile or 'npp' in afile:
-        WMO_sat_ID = SNPP_WMO_sat_ID
-    elif 'J1' in afile or 'j01' in afile:
-        WMO_sat_ID = NOAA20_WMO_sat_ID
-    elif 'J2' in afile or 'j02' in afile:
-        WMO_sat_ID = NOAA21_WMO_sat_ID
-    else:
-        WMO_sat_ID = -1
-        print("could not determine satellite from filename: %s" % afile)
-        sys.exit()
+    WMO_sat_ID = AQUA_WMO_sat_ID
 
     return WMO_sat_ID
 
@@ -295,78 +218,6 @@ def init_obs_loc():
     }
 
     return obs
-
-
-def get_global_attributes(sensor):
-
-    if 'atms':
-        GlobalAttrs = {
-            "platformCommonName": "ATMS",
-            "platformLongDescription": "ATMS Brightness Temperature Data",
-            "sensorCentralFrequency": [
-                23.8, 31.4, 50.3, 51.76, 52.8, 53.596, 54.40, 54.94, 55.50,
-                57.2903, 57.2903, 57.2903, 57.2903, 57.2903, 57.2903,
-                88.20, 165.5, 183.31, 183.31, 183.31, 183.31, 183.31],
-            }
-    elif 'airs':
-        aqua_freq= np.array( [  
-            15.394, 15.366, 15.360, 15.343, 15.337, 15.315, 15.309,  
-            15.303, 15.286, 15.281, 15.275, 15.264, 15.247, 15.241,  
-            15.230, 15.196, 15.179, 15.173, 15.162, 15.111, 15.105,  
-            15.094, 15.088, 15.083, 15.066, 15.049, 15.043, 15.015,  
-            15.009, 14.998, 14.992, 14.986, 14.981, 14.975, 14.969,  
-            14.964, 14.958, 14.952, 14.947, 14.935, 14.930, 14.924,  
-            14.913, 14.879, 14.873, 14.845, 14.839, 14.828, 14.811,  
-            14.805, 14.788, 14.777, 14.771, 14.760, 14.743, 14.737,  
-            14.703, 14.697, 14.674, 14.669, 14.503, 14.498, 14.469,  
-            14.464, 14.435, 14.429, 14.401, 14.395, 14.384, 14.367,  
-            14.350, 14.333, 14.327, 14.321, 14.310, 14.304, 14.298,  
-            14.293, 14.281, 14.270, 14.264, 14.253, 14.236, 14.230,  
-            14.207, 14.196, 14.190, 14.162, 14.144, 14.127, 14.110,  
-            14.093, 14.076, 14.065, 14.059, 14.047, 14.030, 14.013,  
-            14.002, 13.996, 13.968, 13.928, 13.876, 13.865, 13.859,  
-            13.854, 13.848, 13.831, 13.825, 13.802, 13.796, 13.768,  
-            13.739, 13.621, 13.598, 13.593, 13.564, 13.547, 13.541,  
-            13.536, 13.490, 13.473, 13.450, 13.405, 13.376, 13.279,  
-            13.239, 13.165, 12.608, 12.483, 12.432, 12.358, 12.183,  
-            11.850, 11.477, 10.901, 10.884, 10.662, 10.546, 10.358,  
-            10.213,  9.986,  9.948,  9.918,  9.896,  9.871,  9.836,  
-             9.794,  9.704,  9.661,  9.648,  9.644,  9.623,  9.614,  
-             9.605,  9.593,  9.469,  9.439,  9.422,  9.418,  9.405,  
-             9.401,  9.388,  9.358,  9.324,  9.307,  9.154,  9.065,  
-             9.035,  8.971,  8.904,  8.840,  8.806,  8.217,  8.207,  
-             8.166,  8.142,  8.125,  8.087,  8.077,  7.991,  7.779,  
-             7.742,  7.680,  7.677,  7.673,  7.670,  7.629,  7.598,  
-             7.513,  7.493,  7.464,  7.450,  7.433,  7.428,  7.402,  
-             7.368,  7.314,  7.311,  7.260,  7.240,  7.183,  7.158,  
-             7.132,  7.103,  7.044,  7.007,  6.981,  6.958,  6.935,  
-             6.808,  6.794,  6.774,  6.737,  6.697,  6.671,  6.654,  
-             6.606,  6.583,  6.574,  6.560,  6.483,  6.475,  6.460,  
-             6.443,  6.435,  6.426,  6.395,  6.378,  6.369,  6.361,  
-             6.344,  6.304,  6.256,  6.230,  4.584,  4.582,  4.580,  
-             4.578,  4.576,  4.571,  4.569,  4.565,  4.563,  4.561,  
-             4.554,  4.552,  4.550,  4.548,  4.523,  4.516,  4.497,  
-             4.485,  4.483,  4.478,  4.474,  4.472,  4.464,  4.447,  
-             4.445,  4.443,  4.440,  4.430,  4.428,  4.426,  4.407,  
-             4.383,  4.379,  4.350,  4.337,  4.230,  4.228,  4.208,  
-             4.206,  4.204,  4.203,  4.201,  4.198,  4.196,  4.192,  
-             4.191,  4.189,  4.187,  4.186,  4.184,  4.182,  4.180,  
-             4.179,  4.177,  4.175,  4.174,  4.172,  4.170,  4.168,  
-             4.167,  4.165,  4.163,  4.155,  4.145,  4.133,  4.088,  
-             4.081,  4.074,  4.055,  4.013,  3.999,  3.979,  3.949,  
-             3.936,  3.905,  3.845,  3.841,  3.835,  3.830,  3.822,  
-             3.813,  3.799,  3.791,  3.788,  3.785,  3.775,  3.764,  
-             3.763, 3.754 ] )
-        airs_freq = 1.e4/aqua_freq
-        GlobalAttrs = {
-            "platformCommonName": "AIRS",
-            "platformLongDescription": "AIRS Brightness Temperature Data",
-            "sensorCentralFrequency": airs_freq,
-            }
-    else:
-        raise NotImplementedError(f" ... ERROR get_global_attributes: unknown sensor: {sensor}")
-
-    return GlobalAttrs
 
 
 def concat_obs_dict(obs_data, append_obs_data):
