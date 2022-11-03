@@ -14,8 +14,9 @@ from os import getcwd
 import sys
 import pdb
 
-import h5py
 import numpy as np
+
+from eccodes import *
 
 from atms_netcdf_hdf5_2ioda import write_obs_2ioda
 
@@ -45,8 +46,12 @@ GlobalAttrs = {
 locationKeyList = [
     ("latitude", "float"),
     ("longitude", "float"),
-    ("datetime", "string")
+    ("dateTime", "long", "seconds since 1970-01-01T00:00:00Z", "keep"),
 ]
+meta_keys = [m_item[0] for m_item in locationKeyList]
+
+iso8601_string = locationKeyList[meta_keys.index('dateTime')][2]
+epoch = datetime.fromisoformat(iso8601_string[14:-1])
 
 
 def main(args):
@@ -83,87 +88,154 @@ def main(args):
     write_obs_2ioda(obs_data, GlobalAttrs)
 
 
-def get_data_from_files(zfiles):
+def get_data_from_files(afile):
+
+
+    print(f"  ... afile: {afile}")
+    f = open(afile, 'rb')
+    bufr = codes_bufr_new_from_file(f)
+    codes_set(bufr, 'unpack', 1)
+    WMO_sat_ID = get_WMO_satellite_ID(afile)
+
+    profile_meta_data = get_meta_data(bufr)
+    obs_data = get_obs_data(bufr, profile_meta_data, add_qc, record_number=record_number)
+    pdb.set_trace()
+
+
+def get_meta_data(bufr):
+
+    # get some of the global attributes that we are interested in
+    meta_data_keys = def_meta_data()
+
+    # these are the MetaData we are interested in
+    profile_meta_data = {}
+    for k, v in meta_data_keys.items():
+        profile_meta_data[k] = codes_get(bufr, v)
+
+    # do the hokey time structure to time structure
+    year = codes_get(bufr, 'year')
+    month = codes_get(bufr, 'month')
+    day = codes_get(bufr, 'day')
+    hour = codes_get(bufr, 'hour')
+    minute = codes_get(bufr, 'minute')
+    second = codes_get(bufr, 'second')  # non-integer value
+
+    # should be able to import from atms or a def routine
+    iterables = [year, month, day, hour, minute, second]
+    # ensure the year is plausible (65535 appears in some data) if not set to 01Jan1900 (revisit)
+    this_datetime = [datetime(adate[0], adate[1], adate[2], adate[3], adate[4], adate[5]) \
+        if adate[0] < 2200 else datetime(1900,1,1,0,0,0) \
+        for adate in zip(*iterables)]
+
+    time_offset = [round((adatetime - epoch).total_seconds()) for adatetime in this_datetime]
+    obs_data[('datetime', 'MetaData')] = np.array(get_epoch_time(g['obs_time_utc']), dtype='int64')
+
+    profile_meta_data['dateTime'] = time_offset
+
+    return profile_meta_data
+
+
+def get_obs_data(bufr, profile_meta_data):
 
     # allocate space for output depending on which variables are to be saved
     obs_data = init_obs_loc()
 
-    # for afile in zfiles:
-    afile = zfiles
-    if True:
-        f = h5py.File(afile, 'r')
-        obs_data = get_data(f, g, obs_data)
-        f.close()
+    # replication factors for the datasets, bending angle, refractivity and derived profiles
+    krepfac = codes_get_array(bufr, 'extendedDelayedDescriptorReplicationFactor')
+    # array([247, 247, 200])
 
-    return obs_data
+    drepfac = codes_get_array(bufr, 'delayedDescriptorReplicationFactor')
+    # len(drepfac) Out[13]: 247   # ALL values all 3
+    # sequence is 3 *(freq,impact,bendang,first-ord stat, bendang error, first-ord sat)
+    #  note the label bendingAngle is used for both the value and its error !!!
 
+    # get the bending angle
+    lats = codes_get_array(bufr, 'latitude')[1:]                     # geolocation -- first value is the average
+    lons = codes_get_array(bufr, 'longitude')[1:]
+    bang = codes_get_array(bufr, 'bendingAngle')[4::drepfac[0]*2]    # L1, L2, combined -- only care about combined
+    bang_err = codes_get_array(bufr, 'bendingAngle')[5::drepfac[0]*2]
+    impact = codes_get_array(bufr, 'impactParameter')[2::drepfac[0]]
+    bang_conf = codes_get_array(bufr, 'percentConfidence')[1:krepfac[0]+1]
+    # len (bang) Out[19]: 1482  (krepfac * 6) -or- (krepfac * drepfac * 2 )`
 
-def get_data(f, obs_data):
+    # bits are in reverse order according to WMO GNSSRO bufr documentation
+    # ! Bit 1=Non-nominal quality
+    # ! Bit 3=Rising Occulation (1=rising; 0=setting)
+    # ! Bit 4=Excess Phase non-nominal
+    # ! Bit 5=Bending Angle non-nominal
+    i_non_nominal = get_normalized_bit(profile_meta_data['qualityFlag'], bit_index=16-1)
+    i_phase_non_nominal = get_normalized_bit(profile_meta_data['qualityFlag'], bit_index=16-4)
+    i_bang_non_nominal = get_normalized_bit(profile_meta_data['qualityFlag'], bit_index=16-5)
+    iasc = get_normalized_bit(profile_meta_data['qualityFlag'], bit_index=16-3)
+    # add rising/setting (ascending/descending) bit
+    obs_data[('ascending_flag', 'MetaData')] = np.array(np.repeat(iasc, krepfac[0]), dtype=ioda_int_type)
 
-    # NASA GES DISC keys
-    # 'antenna', 'antenna_len', 'antenna_temp', 'antenna_temp_qc', 'asc_flag', 'asc_node_local_solar_time',
-    # 'asc_node_lon', 'asc_node_tai93', 'atrack', 'attitude', 'attitude_lbl', 'attitude_lbl_len',
-    # 'aux_cal_blackbody_qualflag', 'aux_cal_qualflag', 'aux_cal_space_qualflag', 'aux_cold_temp',
-    # 'aux_gain', 'aux_geo_qualflag', 'aux_nonlin', 'aux_offset', 'aux_warm_temp', 'band', 'band_geoloc_chan',
-    # 'band_land_frac', 'band_lat', 'band_lat_bnds', 'band_lbl', 'band_lbl_len', 'band_lon', 'band_lon_bnds',
-    # 'band_surf_alt', 'bandwidth', 'beam_width', 'center_freq', 'chan_band', 'chan_band_len', 'channel',
-    # 'cold_nedt', 'fov_poly', 'if_offset_1', 'if_offset_2', 'instrument_state', 'land_frac', 'lat',
-    # 'lat_bnds', 'lat_geoid', 'local_solar_time', 'lon', 'lon_bnds', 'lon_geoid', 'mean_anom_wrt_equat',
-    # 'moon_ang', 'obs_id', 'obs_id_len', 'obs_time_tai93', 'obs_time_utc', 'polarization', 'polarization_len',
-    # 'sat_alt', 'sat_att', 'sat_azi', 'sat_pos', 'sat_range', 'sat_sol_azi', 'sat_sol_zen', 'sat_vel', 'sat_zen',
-    # 'scan_mid_time', 'sol_azi', 'sol_zen', 'solar_beta_angle', 'spacextrack', 'spatial', 'spatial_lbl',
-    # 'spatial_lbl_len', 'subsat_lat', 'subsat_lon', 'sun_glint_dist', 'sun_glint_lat', 'sun_glint_lon',
-    # 'surf_alt', 'surf_alt_sdev', 'utc_tuple', 'utc_tuple_lbl', 'utc_tuple_lbl_len', 'view_ang', 'warm_nedt', 'xtrack'
+    # print( " ... RO QC flags: %i  %i  %i  %i" % (i_non_nominal, i_phase_non_nominal, i_bang_non_nominal, iasc) )
 
-    pdb.set_trace()
-    WMO_sat_ID = get_WMO_satellite_ID(f.filename)
+    # exit if non-nominal profile
+    if i_non_nominal != 0 or i_phase_non_nominal != 0 or i_bang_non_nominal != 0:
+        return {}
 
-    # example: dimension ( 180, 96 ) == dimension( nscan, nbeam_pos )
-    try:
-        nscans = np.shape(g['lat'])[0]
-        nbeam_pos = np.shape(g['lat'])[1]
-        obs_data[('latitude', 'MetaData')] = np.array(g['lat'][:, :].flatten(), dtype='float32')
-        obs_data[('longitude', 'MetaData')] = np.array(g['lon'][:, :].flatten(), dtype='float32')
-        obs_data[('channelNumber', 'MetaData')] = np.array(g['channel'][:], dtype='int32')
-# V2     obs_data[('fieldOfViewNumber', 'MetaData')] = np.tile(np.arange(nbeam_pos, dtype='int32') + 1, (nscans, 1)).flatten()
-        obs_data[('scan_position', 'MetaData')] = np.tile(np.arange(nbeam_pos, dtype='float32') + 1, (nscans, 1)).flatten()
-# V2     obs_data[('solarZenithAngle', 'MetaData')] = np.array(g['sol_zen'][:, :].flatten(), dtype='float32')
-        obs_data[('solar_zenith_angle', 'MetaData')] = np.array(g['sol_zen'][:, :].flatten(), dtype='float32')
-# V2     obs_data[('solarAzimuthAngle', 'MetaData')] = np.array(g['sol_azi'][:, :].flatten(), dtype='float32')
-        obs_data[('solar_azimuth_angle', 'MetaData')] = np.array(g['sol_azi'][:, :].flatten(), dtype='float32')
-# V2     obs_data[('sensorZenithAngle', 'MetaData')] = np.array(g['sat_zen'][:, :].flatten(), dtype='float32')
-        obs_data[('sensor_zenith_angle', 'MetaData')] = np.array(g['sat_zen'][:, :].flatten(), dtype='float32')
-# V2     obs_data[('sensorAzimuthAngle', 'MetaData')] = np.array(g['sat_azi'][:, :].flatten(), dtype='float32')
-        obs_data[('sensor_azimuth_angle', 'MetaData')] = np.array(g['sat_azi'][:, :].flatten(), dtype='float32')
-        obs_data[('sensor_view_angle', 'MetaData')] = np.array(g['view_ang'][:, :].flatten(), dtype='float32')
-        nlocs = len(obs_data[('latitude', 'MetaData')])
-        obs_data[('satelliteId', 'MetaData')] = np.full((nlocs), WMO_sat_ID, dtype='int32')
-        obs_data[('datetime', 'MetaData')] = np.array(get_string_dtg(g['obs_time_utc'][:, :, :]), dtype=object)
+    # value, ob_error, qc
+    obs_data[('bending_angle', "ObsValue")] = assign_values(bang)
+    obs_data[('bending_angle', "ObsError")] = assign_values(bang_err)
+    obs_data[('bending_angle', "PreQC")] = np.full(krepfac[0], 0, dtype=ioda_int_type)
 
-    # BaseException is a catch-all mechamism
-    except BaseException:
-        # this section is for the NOAA CLASS files and need to be tested
-        obs_data[('latitude', 'MetaData')] = np.array(g['All_Data']['ATMS-SDR-GEO_All']['Latitude'][:, :].flatten(), dtype='float32')
-        obs_data[('longitude', 'MetaData')] = np.array(g['All_Data']['ATMS-SDR-GEO_All']['Longitude'][:, :].flatten(), dtype='float32')
+    # (geometric) height is read as integer but expected as float in output
+    height = codes_get_array(bufr, 'height', ktype=float)
 
-    # example: dimension ( 180, 96, 22 ) == dimension( nscan, nbeam_pos, nchannel )
-    try:
-        nchans = len(obs_data[('channelNumber', 'MetaData')])
-        nlocs = len(obs_data[('latitude', 'MetaData')])
-# V2     obs_data[('brightnessTemperature', "ObsValue")] = np.array(np.vstack(g['antenna_temp']), dtype='float32')
-# V2     obs_data[('brightnessTemperature', "ObsError")] = np.full((nlocs, nchans), 5.0, dtype='float32')
-# V2     obs_data[('brightnessTemperature', "PreQC")] = np.full((nlocs, nchans), 0, dtype='int32')
-        obs_data[('brightness_temperature', "ObsValue")] = np.array(np.vstack(g['antenna_temp']), dtype='float32')
-        obs_data[('brightness_temperature', "ObsError")] = np.full((nlocs, nchans), 5.0, dtype='float32')
-        obs_data[('brightness_temperature', "PreQC")] = np.full((nlocs, nchans), 0, dtype='int32')
-    except BaseException:
-        # this section is for the NOAA CLASS files and need to be tested
-        scaled_data = np.vstack(f['All_Data']['ATMS-SDR_All']['BrightnessTemperature'])
-        scale_fac = f['All_Data']['ATMS-SDR_All']['BrightnessTemperatureFactors'][:].flatten()
+    # get the refractivity
+    refrac = codes_get_array(bufr, 'atmosphericRefractivity')[0::2]
+    refrac_err = codes_get_array(bufr, 'atmosphericRefractivity')[1::2]
+    refrac_conf = codes_get_array(bufr, 'percentConfidence')[sum(krepfac[:1])+1:sum(krepfac[:2])+1]
 
-        obs_data[('brightnessTemperature', "ObsValue")] = np.array((scaled_data * scale_fac[0]) + scale_fac[1], dtype='float32')
-        obs_data[('brightnessTemperature', "ObsError")] = np.full((nlocs, nchans), 5.0, dtype='float32')
-        obs_data[('brightnessTemperature', "PreQC")] = np.full((nlocs, nchans), 0, dtype='int32')
+    # value, ob_error, qc
+    obs_data[('refractivity', "ObsValue")] = assign_values(refrac)
+    obs_data[('refractivity', "ObsError")] = assign_values(refrac_err)
+    obs_data[('refractivity', "PreQC")] = np.full(krepfac[0], 0, dtype=ioda_int_type)
+
+    meta_data_types = def_meta_types()
+
+    obs_data[('latitude', 'MetaData')] = assign_values(lats)
+    obs_data[('longitude', 'MetaData')] = assign_values(lons)
+    obs_data[('impact_parameter', 'MetaData')] = assign_values(impact)
+    obs_data[('altitude', 'MetaData')] = assign_values(height)
+    for k, v in profile_meta_data.items():
+        if type(v) is int:
+            obs_data[(k, 'MetaData')] = np.array(np.repeat(v, krepfac[0]), dtype=ioda_int_type)
+        elif type(v) is float:
+            obs_data[(k, 'MetaData')] = np.array(np.repeat(v, krepfac[0]), dtype=ioda_float_type)
+        else:  # something else (datetime for instance)
+            string_array = np.repeat(v.strftime("%Y-%m-%dT%H:%M:%SZ"), krepfac[0])
+            obs_data[(k, 'MetaData')] = string_array.astype(object)
+
+    # set record number (multi file procesing will change this)
+    if record_number is None:
+        nrec = 1
+    else:
+        nrec = record_number
+    obs_data[('record_number', 'MetaData')] = np.array(np.repeat(nrec, krepfac[0]), dtype=ioda_int_type)
+
+    # get derived profiles
+    geop = codes_get_array(bufr, 'geopotentialHeight')[:-1]
+    pres = codes_get_array(bufr, 'nonCoordinatePressure')[0:-2:2]
+    temp = codes_get_array(bufr, 'airTemperature')[0::2]
+    spchum = codes_get_array(bufr, 'specificHumidity')[0::2]
+    prof_conf = codes_get_array(bufr, 'percentConfidence')[sum(krepfac[:2])+1:sum(krepfac)+1]
+
+    # Compute impact height
+    obs_data[('impact_height', 'MetaData')] = \
+        obs_data[('impact_parameter', 'MetaData')] - \
+        obs_data[('geoid_height_above_reference_ellipsoid', 'MetaData')] - \
+        obs_data[('earth_radius_of_curvature', 'MetaData')]
+
+    if add_qc:
+        good = quality_control(profile_meta_data, height, lats, lons)
+        if len(lats[good]) == 0:
+            return{}
+            # exit if entire profile is missing
+        for k in obs_data.keys():
+            obs_data[k] = obs_data[k][good]
 
     return obs_data
 
@@ -174,21 +246,6 @@ def get_WMO_satellite_ID(filename):
     WMO_sat_ID = AQUA_WMO_sat_ID
 
     return WMO_sat_ID
-
-
-def get_string_dtg(obs_time_utc):
-
-    year = obs_time_utc[:, :, 0].flatten()
-    month = obs_time_utc[:, :, 1].flatten()
-    day = obs_time_utc[:, :, 2].flatten()
-    hour = obs_time_utc[:, :, 3].flatten()
-    minute = obs_time_utc[:, :, 4].flatten()
-    dtg = []
-    for i, yyyy in enumerate(year):
-        cdtg = ("%4i-%.2i-%.2iT%.2i:%.2i:00Z" % (yyyy, month[i], day[i], hour[i], minute[i]))
-        dtg.append(cdtg)
-
-    return dtg
 
 
 def init_obs_loc():
@@ -208,7 +265,7 @@ def init_obs_loc():
         ('channelNumber', 'MetaData'): [],
         ('latitude', 'MetaData'): [],
         ('longitude', 'MetaData'): [],
-        ('datetime', 'MetaData'): [],
+        ('dateTime', 'MetaData'): [],
         ('scan_position', 'MetaData'): [],
         ('solar_zenith_angle', 'MetaData'): [],
         ('solar_azimuth_angle', 'MetaData'): [],
@@ -218,6 +275,18 @@ def init_obs_loc():
     }
 
     return obs
+
+
+def def_meta_data():
+
+    # keys in bufr file for single value metaData per footprint
+    meta_data_keys = {
+        "satelliteId", 'MetaData',
+        "nchan", 'MetaData',
+        "dateTime", 'MetaData',
+    }
+
+    return meta_data_keys
 
 
 def concat_obs_dict(obs_data, append_obs_data):
