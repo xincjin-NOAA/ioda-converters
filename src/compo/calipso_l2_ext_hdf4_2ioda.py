@@ -17,6 +17,7 @@ from pyhdf.HDF import *
 from pyhdf.VS import *
 from pyhdf.SD import SD, SDC
 import numpy as np
+import pandas as pd
 
 float_missing_value = -9999.
 int_missing_value = 32768
@@ -39,7 +40,8 @@ GlobalAttrs = {
 locationKeyList = [
     ("latitude", "float"),
     ("longitude", "float"),
-    ("level", "int32")
+    #("level", "int32"),
+    ("datetime","string"),
 ]
 
 obsvars = {
@@ -89,7 +91,7 @@ def main(args):
     #speed_light = 2.99792458E8
     #frequency = speed_light*1.0E9/lid_wav
 
-    nlocs_int32 = np.array(len(obs_data[('latitude', 'MetaData')]), dtype='float32')  # this is float32 in old convention
+    nlocs_int32 = np.array(len(obs_data[('latitude', 'MetaData')]), dtype='int32')  # this is float32 in old convention
     nlocs = nlocs_int32.item()
     #nchans = len(obs_data[('channelNumber', 'MetaData')])
 
@@ -102,38 +104,43 @@ def main(args):
 
     # pass parameters to the IODA writer
     VarDims = {
-        'ExtinctionCoeff_532': ['nlocs', 'nlevs'],
-        'Extinction_QC_Flag_532': ['nlocs', 'nlevs'],
-        'ExtinctionCoeff_1064': ['nlocs', 'nlevs'],
-        'Extinction_QC_Flag_1064': ['nlocs', 'nlevs'],
-        'Pressure': ['nlocs', 'nlevs'],
-        'Temperature': ['nlocs', 'nlevs'],
-        'level':['nlevs'],
-        'Lidar_Data_Altitudes':['nlevs'],
-        'profileTime':['nlocs'],
+        'extinction_coeff_532': ['nlocs'],
+        'extinction_qcflag_532': ['nlocs'],
+        'extinction_coeff_1064': ['nlocs'],
+        'extinction_qcflag_1064': ['nlocs'],
+        'Pressure': ['nlocs'],
+        'Temperature': ['nlocs'],
+        #'extinction_coeff_532': ['nlocs', 'nlevs'],
+        #'extinction_qcflag_532': ['nlocs', 'nlevs'],
+        #'extinction_coeff_1064': ['nlocs', 'nlevs'],
+        #'extinction_qcflag_1064': ['nlocs', 'nlevs'],
+        #'Pressure': ['nlocs', 'nlevs'],
+        #'Temperature': ['nlocs', 'nlevs'],
+        #'Lidar_Data_Altitudes':['nlevs'],
     }
 
     DimDict = {
         'nlocs': nlocs,
-        'nlevs': len(obs_data[('level','MetaData')]),
+        #'nlevs': len(obs_data[('level','MetaData')]),
     }
     writer = iconv.IodaWriter(output_filename, locationKeyList, DimDict)
 
     VarAttrs = DefaultOrderedDict(lambda: DefaultOrderedDict(dict))
 
-    VarAttrs[('ExtinctionCoeff_532',   'ObsValue')]['_FillValue'] = float_missing_value
-    VarAttrs[('ExtinctionCoeff_1064',  'ObsValue')]['_FillValue'] = float_missing_value
-    VarAttrs[('Extinction_QC_Flag_532',   'ObsValue')]['_FillValue'] = int_missing_value
-    VarAttrs[('Extinction_QC_Flag_1064',  'ObsValue')]['_FillValue'] = int_missing_value
-    VarAttrs[('ExtinctionCoeff_532',   'ObsError')]['_FillValue'] = float_missing_value
-    VarAttrs[('ExtinctionCoeff_1064',  'ObsError')]['_FillValue'] = float_missing_value
+    VarAttrs[('extinction_coeff_532',   'ObsValue')]['_FillValue'] = float_missing_value
+    VarAttrs[('extinction_coeff_1064',  'ObsValue')]['_FillValue'] = float_missing_value
+    VarAttrs[('extinction_qcflag_532',   'PreQC')]['_FillValue'] = int_missing_value
+    VarAttrs[('extinction_qcflag_1064',  'PreQC')]['_FillValue'] = int_missing_value
+    VarAttrs[('extinction_coeff_532',   'ObsError')]['_FillValue'] = float_missing_value
+    VarAttrs[('extinction_coeff_1064',  'ObsError')]['_FillValue'] = float_missing_value
     #VarAttrs[(k, 'PreQC')]['_FillValue'] = int_missing_value
 
-    VarAttrs[('ExtinctionCoeff_532',   'ObsValue')]['units'] = 'km-1'
-    VarAttrs[('ExtinctionCoeff_1064',  'ObsValue')]['units'] = 'km-1'
-    VarAttrs[('ExtinctionCoeff_532',   'ObsError')]['units'] = 'km-1'
-    VarAttrs[('ExtinctionCoeff_1064',  'ObsError')]['units'] = 'km-1'
-    #VarAttrs[(k, 'PreQC')]['units'] = 'unitless'
+    VarAttrs[('extinction_coeff_532',   'ObsValue')]['units'] = 'km-1'
+    VarAttrs[('extinction_coeff_1064',  'ObsValue')]['units'] = 'km-1'
+    VarAttrs[('extinction_coeff_532',   'ObsError')]['units'] = 'km-1'
+    VarAttrs[('extinction_coeff_1064',  'ObsError')]['units'] = 'km-1'
+    VarAttrs[('extinction_qcflag_532',  'PreQC')]['units'] = 'unitless'
+    VarAttrs[('extinction_qcflag_1064', 'PreQC')]['units'] = 'unitless'
 
     # final write to IODA file
     writer.BuildIoda(obs_data, VarDims, VarAttrs, GlobalAttrs)
@@ -170,36 +177,40 @@ def get_hdf_meta_dict(vs):
     return meta_dict
 
 def get_data(f, obs_data, meta_dict):
+    global profile_time
 
     #nchans = 2
-    nlevs = f.select('Pressure').get().shape[1]
+    #nlevs = f.select('Pressure').get().shape[1]
     
     obs_data[('latitude', 'MetaData')] = np.array(f.select('Latitude').get()[:,1], dtype='float32')
     obs_data[('longitude', 'MetaData')] = np.array(f.select('Longitude').get()[:,1], dtype='float32')
-    obs_data[('level', 'MetaData')] = np.array(np.arange(nlevs)+1, dtype='int32')
+    #obs_data[('level', 'MetaData')] = np.array(np.arange(nlevs)+1, dtype='int32')
   
     nlocs = len(obs_data[('latitude', 'MetaData')])
     obs_data[('satelliteId', 'MetaData')] = np.full((nlocs), CALIPSO_WMO_sat_ID, dtype='int32')
-
-    # Convert Profile_Time to YYYY-MM-DDTHH:MM:SSZ format
+    
+    # Convert Profile_UTC to YYYY-MM-DDTHH:MM:SSZ format
     # Need to update to epoch style
     basetime=datetime(1993,1,1)
     tmp=np.array(f.select('Profile_Time').get()[:,1],dtype='int32')+int(basetime.timestamp())
     tmpdf=pd.DataFrame({'datetime':tmp})
     profile_time=(pd.to_datetime(tmpdf['datetime'],unit='s')).dt.strftime('%Y-%m-%dT%H:%M:%SZ').values
-    
-    obs_data[('Lidar_Data_Altitudes', 'MetaData')] = np.array(meta_dict['Lidar_Data_Altitudes'],dtype='float32')
+    #print(profile_time)
+ 
+    #obs_data[('Lidar_Data_Altitudes', 'MetaData')] = np.array(meta_dict['Lidar_Data_Altitudes'],dtype='float32')
     obs_data[('datetime', 'MetaData')] = np.array(profile_time, dtype=object)
-    obs_data[('Pressure', 'MetaData')] = np.array(f.select('Pressure').get(), dtype='float32')
-    obs_data[('Temperature', 'MetaData')] = np.array(f.select('Temperature').get(), dtype='float32')
+    obs_data[('pressure', 'MetaData')] = np.array(f.select('Pressure').get()[:,0], dtype='float32')
+    obs_data[('temperature', 'MetaData')] = np.array(f.select('Temperature').get()[:,0], dtype='float32')
 
-    obs_data[('ExtinctionCoeff_532', "ObsValue")] = np.array(f.select("Extinction_Coefficient_532").get(),dtype='float32')
-    obs_data[('ExtinctionCoeff_1064',"ObsValue")] = np.array(f.select("Extinction_Coefficient_1064").get(),dtype='float32')
-    obs_data[('ExtinctionCoeff_532', "ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_532").get(),dtype='float32')
-    obs_data[('ExtinctionCoeff_1064',"ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_1064").get(),dtype='float32')
+    obs_data[('extinction_coeff_532', "ObsValue")] = np.array(f.select("Extinction_Coefficient_532").get()[:,0],dtype='float32')
+    obs_data[('extinction_coeff_1064',"ObsValue")] = np.array(f.select("Extinction_Coefficient_1064").get()[:,0],dtype='float32')
+    obs_data[('extinction_coeff_532', "ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_532").get()[:,0],dtype='float32')
+    obs_data[('extinction_coeff_1064',"ObsError")] = np.array(f.select("Extinction_Coefficient_Uncertainty_1064").get()[:,0],dtype='float32')
 
-    obs_data[('Extinction_QC_Flag_532', "PreQC")] = np.array(f.select("Extinction_QC_Flag_532").get(),dtype='int32')
-    obs_data[('Extinction_QC_Flag_1064',"PreQC")] = np.array(f.select("Extinction_QC_Flag_1064").get(),dtype='int32')
+    obs_data[('extinction_qcflag_532', "PreQC")] = np.array(f.select("Extinction_QC_Flag_532").get()[:,0,0],dtype='int32')
+    obs_data[('extinction_qcflag_1064',"PreQC")] = np.array(f.select("Extinction_QC_Flag_1064").get()[:,0,0],dtype='int32')
+
+    #print(obs_data[('extinction_qcflag_532', "ObsValue")])
 
     # For PreQC, the value of -9999. and -333. of Extinction and Backscatter can be rejected.
 
@@ -274,17 +285,19 @@ def get_string_dtg(f):
 
 def init_obs_loc():
     obs = {
-        ( 'ExtinctionCoeff_532', "ObsValue"): [],
-        ( 'ExtinctionCoeff_1064', "ObsValue"): [],
-        ( 'ExtinctionCoeff_532', "ObsError"): [],
-        ( 'ExtinctionCoeff_1064', "ObsError"): [],
-        ( 'Extinction_QC_Flag_532', "ObsValue"): [],
-        ( 'Extinction_QC_Flag_1064', "ObsValue"): [],
+        ( 'extinction_coeff_532', "ObsValue"): [],
+        ( 'extinction_coeff_1064', "ObsValue"): [],
+        ( 'extinction_coeff_532', "ObsError"): [],
+        ( 'extinction_coeff_1064', "ObsError"): [],
+        ( 'extinction_qcflag_532',  "PreQC"): [],
+        ( 'extinction_qcflag_1064', "PreQC"): [],
         ('latitude', 'MetaData'): [],
         ('longitude', 'MetaData'): [],
-        ('level', 'MetaData'): [],
-        ('Lidar_Data_Altitudes', 'MetaData'): [],
-        ('profileTime', 'MetaData'): [],
+        #('level', 'MetaData'): [],
+        #('Lidar_Data_Altitudes', 'MetaData'): [],
+        ('pressure', 'MetaData'): [],
+        ('temperature', 'MetaData'): [],
+        ('datetime', 'MetaData'): [],
         ('satelliteId', 'MetaData'): [],
     }
 
