@@ -14,12 +14,11 @@ module define_mod
    integer(i_kind), parameter :: itrue = 1
    integer(i_kind), parameter :: ifalse = 0
    integer(i_kind), parameter :: nstring = 50
-   integer(i_kind), parameter :: ndatetime = 20
    integer(i_kind), parameter :: nobtype = 7  ! number of ob types
-   integer(i_kind), parameter :: n_ncdim = 3  ! total numner of nc dimensions
+   integer(i_kind), parameter :: n_ncdim = 2  ! total numner of nc dimensions
    integer(i_kind), parameter :: n_ncgrp = 5  ! total numner of nc groups
    integer(i_kind), parameter :: nvar_met = 6
-   integer(i_kind), parameter :: nvar_info = 9  ! number of metadata
+   integer(i_kind), parameter :: nvar_info = 8  ! number of metadata
    integer(i_kind), parameter :: nsen_info = 7  ! number of sensor metadata
    integer(i_kind), parameter :: ninst_geo = 1
    integer(i_kind), parameter :: ninst = 17
@@ -30,30 +29,25 @@ module define_mod
    character(len=3), parameter :: dtime_max = '+3h'
 
 ! variables for defining observation types and met variables each type has
-   character(len=nstring), dimension(nobtype) :: obtype_list = &
-                                                 (/ &
-                                                 'sondes      ', &
-                                                 'aircraft    ', &
-                                                 'sfc         ', &
-                                                 'satwind     ', &  !AMV winds from prepbufr file
-                                                 'satwnd      ', &  !AMV winds from bufr file
-                                                 'profiler    ', &
-                                                 'ascat       ' &
-                                                 /)
+   character(len=nstring), dimension(nobtype) :: obtype_list = (/ &
+                                                 'sondes',        &
+                                                 'aircraft',      &
+                                                 'sfc',           &
+                                                 'satwind',       &  !AMV winds from prepbufr file
+                                                 'satwnd',        &  !AMV winds from bufr file
+                                                 'profiler',      &
+                                                 'ascat' /)
 
-   character(len=nstring), dimension(nvar_met) :: name_var_met = &
-                                                  (/ &
-                                                  var_u, &
-                                                  var_v, &
-                                                  var_ts, &
-                                                  var_tv, &
-                                                  var_q, &
-                                                  var_ps &
-                                                  /)
+   character(len=nstring), dimension(nvar_met) :: name_var_met = (/ &
+                                                  var_u,            &
+                                                  var_v,            &
+                                                  var_ts,           &
+                                                  var_tv,           &
+                                                  var_q,            &
+                                                  var_ps /)
 
 ! variable flags for var_u, var_v, var_ts, var_tv, var_q, var_ps
-   integer(i_kind), dimension(nvar_met, nobtype) :: vflag = reshape( &
-                                                    (/ &
+   integer(i_kind), dimension(nvar_met, nobtype) :: vflag = reshape( (/ &
                                                     itrue, itrue, itrue, itrue, itrue, ifalse, & ! sonde
                                                     itrue, itrue, itrue, itrue, itrue, ifalse, & ! aircraft
                                                     itrue, itrue, itrue, itrue, itrue, itrue, & ! sfc
@@ -63,76 +57,58 @@ module define_mod
                                                     itrue, itrue, ifalse, ifalse, ifalse, ifalse & ! ascat
                                                     /), (/nvar_met, nobtype/))
 
-   character(len=nstring), dimension(nvar_met) :: unit_var_met = &
-                                                  (/ &
-                                                  'm/s   ', &
-                                                  'm/s   ', &
-                                                  'K     ', &
-                                                  'K     ', &
-                                                  'kg/kg ', &
-                                                  'Pa    ' &
-                                                  /)
+   character(len=nstring), dimension(nvar_met) :: unit_var_met = (/ &
+                                                  'm s-1',          &
+                                                  'm s-1',          &
+                                                  'K',              &
+                                                  'K',              &
+                                                  'kg kg-1',        &
+                                                  'Pa' /)
 
 ! variables for defining radiance instrument types
-   character(len=nstring), dimension(ninst) :: inst_list = &
-                                               (/ &
-                                               'amsua_n15       ', &
-                                               'amsua_n18       ', &
-                                               'amsua_n19       ', &
-                                               'amsua_metop-a   ', &
-                                               'amsua_metop-b   ', &
-                                               'amsua_metop-c   ', &
-                                               !      'airs_aqua       ', &
-                                               'amsua_aqua      ', &
-                                               'mhs_n18         ', &
-                                               'mhs_n19         ', &
-                                               'mhs_metop-a     ', &
-                                               'mhs_metop-b     ', &
-                                               'mhs_metop-c     ', &
-                                               'iasi_metop-a    ', &
-                                               'iasi_metop-b    ', &
-                                               'iasi_metop-c    ', &
-                                               'cris_npp        ', &
-                                               'cris_n20        ' &
-                                               /)
+   character(len=nstring), dimension(ninst) :: inst_list = (/   &
+                                               'amsua_n15',     &
+                                               'amsua_n18',     &
+                                               'amsua_n19',     &
+                                               'amsua_metop-a', &
+                                               'amsua_metop-b', &
+                                               'amsua_metop-c', &
+                                               ! 'airs_aqua',   &
+                                               'amsua_aqua',    &
+                                               'mhs_n18',       &
+                                               'mhs_n19',       &
+                                               'mhs_metop-a',   &
+                                               'mhs_metop-b',   &
+                                               'mhs_metop-c',   &
+                                               'iasi_metop-a',  &
+                                               'iasi_metop-b',  &
+                                               'iasi_metop-c',  &
+                                               'cris_npp',      &
+                                               'cris_n20' /)
 
-   character(len=nstring), dimension(ninst_geo) :: geoinst_list = &
-                                                   (/ &
-                                                   'ahi_himawari8   ' &
-                                                   /)
+   character(len=nstring), dimension(ninst_geo) :: geoinst_list = (/ &
+                                                   'ahi_himawari8' /)
 ! variables for outputing netcdf files
-   character(len=nstring), dimension(n_ncdim) :: name_ncdim = &
-                                                 (/ &
-                                                 'nvars     ' &
-                                                 , 'nlocs     ' &
-                                                 , 'nstring   ' &
-                                                 !    , 'ndatetime '  &
-                                                 /)
-   character(len=nstring), dimension(n_ncgrp) :: name_ncgrp = &
-                                                 (/ &
-                                                 'MetaData  ', &
-                                                 'ObsValue  ', &
-                                                 'ObsError  ', &
-                                                 'PreQC     ', &
-                                                 'ObsType   ' &
-                                                 /)
-   character(len=nstring), dimension(nvar_info) :: name_var_info = &
-                                                   (/ &
-                                                   'air_pressure     ', &
-                                                   'height           ', &
-                                                   'station_elevation', &
-                                                   'latitude         ', &
-                                                   'longitude        ', &
-                                                   'dateTime         ', &
-                                                   'LaunchTime       ', &
-                                                   'station_id       ', &
-                                                   'variable_names   ' &
-                                                   /)
+   character(len=8), dimension(n_ncdim) :: name_ncdim = (/'Location', 'Channel '/)
+   character(len=nstring), dimension(n_ncgrp) :: name_ncgrp = (/ &
+                                                 'MetaData',     &
+                                                 'ObsValue',     &
+                                                 'ObsError',     &
+                                                 'PreQC',        &
+                                                 'ObsType' /)
+   character(len=nstring), dimension(nvar_info) :: name_var_info = (/  &
+                                                   'pressure',         &
+                                                   'height',           &
+                                                   'stationElevation', &
+                                                   'latitude',         &
+                                                   'longitude',        &
+                                                   'dateTime',         &
+                                                   'releaseTime',      &
+                                                   'stationIdentification' /)
 
 ! conv info flags for name_var_info
 ! air_pressure, height, station_elevation, latitude, longitude, dateTime, LaunchTime, station_id, variable_names
-   integer(i_kind), dimension(nvar_info, nobtype) :: iflag_conv = reshape( &
-                                                     (/ &
+   integer(i_kind), dimension(nvar_info, nobtype) :: iflag_conv = reshape( (/ &
                                                      itrue, itrue, itrue, itrue, itrue, itrue, itrue, itrue, itrue, & ! sonde
                                                      itrue, itrue, itrue, itrue, itrue, itrue, ifalse, itrue, itrue, & ! aircraft
                                                      itrue, itrue, itrue, itrue, itrue, itrue, ifalse, itrue, itrue, & ! sfc
@@ -144,64 +120,53 @@ module define_mod
 
 ! radiance info flags for name_var_info
 ! air_pressure, height, station_elevation, latitude, longitude, dateTime, LaunchTime, station_id, variable_names
-   integer(i_kind), dimension(nvar_info) :: iflag_radiance = &
-                                            (/ &
+   integer(i_kind), dimension(nvar_info) :: iflag_radiance = (/ &
                                             ifalse, ifalse, ifalse, itrue, itrue, itrue, ifalse, ifalse, ifalse &
                                             /)
 
-   integer(i_kind), dimension(nvar_info) :: type_var_info = &
-                                            (/ &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_int64, &
-                                            nf90_int64, &
-                                            nf90_char, &
-                                            nf90_char &
-                                            /)
-   character(len=nstring), dimension(2, nvar_info) :: dim_var_info = reshape( &
-                                                      (/ &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nstring   ', 'nlocs     ', &
-                                                      'nstring   ', 'nvars     ' &
+   integer(i_kind), dimension(nvar_info) :: type_var_info = (/ &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_int64,        &
+                                            nf90_int64,        &
+                                            nf90_char /)
+   character(len=nstring), dimension(2, nvar_info) :: dim_var_info = reshape( (/ &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'nstring', 'Location'      &
                                                       /), (/2, nvar_info/))
-   character(len=nstring), dimension(nsen_info) :: name_sen_info = &
-                                                   (/ &
-                                                   'solar_azimuth_angle ', &
-                                                   'scan_position       ', &
-                                                   'sensor_azimuth_angle', &
-                                                   'solar_zenith_angle  ', &
-                                                   'sensor_zenith_angle ', &
-                                                   'sensor_view_angle   ', &
-                                                   'sensor_channel      ' &
-                                                   /)
-   integer(i_kind), dimension(nsen_info) :: type_sen_info = &
-                                            (/ &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_float, &
-                                            nf90_int &
-                                            /)
-   character(len=nstring), dimension(2, nsen_info) :: dim_sen_info = reshape( &
-                                                      (/ &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nlocs     ', 'null      ', &
-                                                      'nvars     ', 'null      ' &
+   character(len=nstring), dimension(nsen_info) :: name_sen_info = (/    &
+                                                   'solarAzimuthAngle',  &
+                                                   'sensorScanPosition', &
+                                                   'sensorAzimuthAngle', &
+                                                   'solarZenithAngle',   &
+                                                   'sensorZenithAngle',  &
+                                                   'sensorViewAngle',    &
+                                                   'sensorChannelNumber' /)
+   integer(i_kind), dimension(nsen_info) :: type_sen_info = (/ &
+                                            nf90_float,        &
+                                            nf90_int,          &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_float,        &
+                                            nf90_int /)
+   character(len=nstring), dimension(2, nsen_info) :: dim_sen_info = reshape( (/ &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null',        &
+                                                      'Location', 'null'         &
                                                       /), (/2, nsen_info/))
 
 ! variables for storing data
@@ -213,11 +178,7 @@ module define_mod
    end type xfield_type
 
    type xdata_type
-      integer(i_kind)                                     :: nvars
-      integer(i_kind)                                     :: nrecs
       integer(i_kind)                                     :: nlocs
-      character(len=ndatetime)                            :: min_datetime
-      character(len=ndatetime)                            :: max_datetime
       integer(i_kind), allocatable, dimension(:)   :: var_idx
       type(xfield_type), allocatable, dimension(:, :) :: xfield
       real(r_kind), allocatable, dimension(:, :) :: xinfo_float
