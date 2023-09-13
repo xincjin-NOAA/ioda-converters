@@ -9,20 +9,42 @@
 #include <vector>
 #include <string>
 
-#include "QuerySet.h"
-#include "File.h"
-#include "ResultSet.h"
-
+#include "BufrParser/Query/QuerySet.h"
+#include "BufrParser/Query/File.h"
+#include "BufrParser/Query/ResultSet.h"
+#include "BufrParser/BufrParser.h"
+//#include "IodaEncoder/IodaEncoder.h"
+#include "DataContainer.h"
+#include "bufr2ioda_func.h"
 
 namespace py = pybind11;
 
 using Ingester::bufr::ResultSet;
 using Ingester::bufr::QuerySet;
 using Ingester::bufr::File;
+using Ingester::BufrParser;
+//using Ingester::IodaEncoder;
+using Ingester::DataContainer;
+using Ingester::CategoryMap;
+using Ingester::parse1;
 
     PYBIND11_MODULE(bufr, m)
     {
         m.doc() = "Provides the ability to get data from BUFR files via query strings.";
+
+        m.def("parse", &parse1, "A function which adds two numbers");
+
+        py::class_<BufrParser>(m, "BufrParser")
+            .def(py::init<const eckit::LocalConfiguration&>())
+            .def("parse", &BufrParser::parse,
+                           py::arg("size_t"),
+                           "Get the number of queries in the query set.");
+
+        py::class_<DataContainer>(m, "DataContainer")
+            .def(py::init<>())
+            .def(py::init<const Ingester::CategoryMap&>())
+            .def("add", &DataContainer::size, "Get the number of queries in the query set.")
+            .def("get", &DataContainer::add, "Add a query to the query set.");
 
         py::class_<QuerySet>(m, "QuerySet")
             .def(py::init<>())
