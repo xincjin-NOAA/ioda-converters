@@ -35,6 +35,8 @@ namespace Ingester
                 auto parser = parseFactory.create("bufr", configuration);
                 auto data = parser->parse(numMsgs);
                 oops::Log::info() << "Get Bufr Data" << std::endl;
+                //auto encoder = IodaEncoder(obsConf.getSubConfiguration("ioda"));
+                //encoder.encode(data);
                 return data;
             }
         }
@@ -45,5 +47,39 @@ namespace Ingester
         oops::Log::info() << "Return Bufr Data" << std::endl;
         return data;
     }
+
+    void encode_save(const std::string& yamlPath, std::shared_ptr<DataContainer> data)
+    {
+        ParseFactory parseFactory;
+        parseFactory.registerObject<BufrParser>("bufr");
+
+        std::unique_ptr<eckit::YAMLConfiguration>
+            yaml(new eckit::YAMLConfiguration(eckit::PathName(yamlPath)));
+        oops::Log::info() << " Start to process Bufr Data" << std::endl;
+        if (yaml->has("observations"))
+        {
+            oops::Log::info() << "Get yaml Data" << std::endl;
+            for (const auto& obsConf : yaml->getSubConfigurations("observations"))
+            {
+                if (!obsConf.has("obs space") ||
+                    !obsConf.has("ioda"))
+                {
+                    eckit::BadParameter(
+                        "   Incomplete obs found. All obs must have a obs space and ioda.");
+                }
+                oops::Log::info() << "Start encoder Data" << std::endl;
+                auto encoder = IodaEncoder(obsConf.getSubConfiguration("ioda"));
+                oops::Log::info() << "start save Data" << std::endl;
+                encoder.encode(data);
+            }
+        }
+        else
+        {
+            eckit::BadParameter("No section named \"observations\"");
+        }
+        oops::Log::info() << "Return Bufr Data" << std::endl;
+    }
+
+
 }  // namespace Ingester
 

@@ -6,6 +6,7 @@
  */
 
 #include <pybind11/pybind11.h>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -13,7 +14,7 @@
 #include "BufrParser/Query/File.h"
 #include "BufrParser/Query/ResultSet.h"
 #include "BufrParser/BufrParser.h"
-//#include "IodaEncoder/IodaEncoder.h"
+#include "IodaEncoder/IodaEncoder.h"
 #include "DataContainer.h"
 #include "bufr2ioda_func.h"
 
@@ -23,10 +24,11 @@ using Ingester::bufr::ResultSet;
 using Ingester::bufr::QuerySet;
 using Ingester::bufr::File;
 using Ingester::BufrParser;
-//using Ingester::IodaEncoder;
+using Ingester::IodaEncoder;
 using Ingester::DataContainer;
 using Ingester::CategoryMap;
 using Ingester::parse1;
+using Ingester::encode_save;
 
     PYBIND11_MODULE(bufr, m)
     {
@@ -34,17 +36,26 @@ using Ingester::parse1;
 
         m.def("parse", &parse1, "A function which adds two numbers");
 
+        m.def("encode_save", [](const std::string& yamlPath, std::shared_ptr<DataContainer> shared_data_container) {
+        encode_save(yamlPath, shared_data_container);
+        }, "A function which adds two numbers");
+
         py::class_<BufrParser>(m, "BufrParser")
             .def(py::init<const eckit::LocalConfiguration&>())
             .def("parse", &BufrParser::parse,
                            py::arg("size_t"),
                            "Get the number of queries in the query set.");
 
-        py::class_<DataContainer>(m, "DataContainer")
+        py::class_<IodaEncoder>(m, "IodaEncoder")
+            .def(py::init<const eckit::Configuration&>())
+            .def("encode", &IodaEncoder::encode,
+                           "Get the number of queries in the query set.");
+
+        py::class_<DataContainer, std::shared_ptr<DataContainer>>(m, "DataContainer")
             .def(py::init<>())
             .def(py::init<const Ingester::CategoryMap&>())
-            .def("add", &DataContainer::size, "Get the number of queries in the query set.")
-            .def("get", &DataContainer::add, "Add a query to the query set.");
+            .def("add", &DataContainer::add, "Get the number of queries in the query set.")
+            .def("get", &DataContainer::get, "Add a query to the query set.");
 
         py::class_<QuerySet>(m, "QuerySet")
             .def(py::init<>())

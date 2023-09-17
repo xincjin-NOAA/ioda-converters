@@ -132,19 +132,21 @@ if ( iodaconv_bufr_ENABLED )
 endif()
 
 # Make the python bindings
+
+# Make the python bindings
 if ( iodaconv_bufr_python_ENABLED )
 
-  list(APPEND _query_libs
-              Eigen3::Eigen
-              eckit
-              ${oops_LIBRARIES}
-              ioda_engines
-              bufr::bufr_4
-              gsl::gsl-lite
-              atms_lib
+  list(APPEND _python_interface_libs
+      Eigen3::Eigen
+      eckit
+      gsl::gsl-lite
+      bufr::bufr_4
+      ioda_engines
+      atms_lib
+      ${oops_LIBRARIES}
     )
 
-  list (APPEND _query_srcs
+  list (APPEND _python_interface_srcs
     IngesterTypes.h
     DataContainer.h
     DataContainer.cpp
@@ -222,9 +224,10 @@ if ( iodaconv_bufr_python_ENABLED )
     bufr2ioda_func.h
     )
 
-  pybind11_add_module(bufr ${_query_srcs})
-  target_link_libraries(bufr PUBLIC ${_query_libs})
+  pybind11_add_module(bufr ${_python_interface_srcs})
+  target_link_libraries(bufr PUBLIC ${_python_interface_libs})
   target_compile_definitions(bufr PRIVATE BUILD_PYTHON_BINDING=1)
+  target_compile_definitions(bufr PRIVATE BUILD_IODA_BINDING=1)
   target_include_directories(bufr PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                              $<INSTALL_INTERFACE:bufr>  # <prefix>/bufr
