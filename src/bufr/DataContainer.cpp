@@ -59,6 +59,43 @@ namespace Ingester
         return dataSets_.at(categoryId).at(fieldName);
     }
 
+#ifdef BUILD_PYTHON_BINDING
+
+ void DataContainer::setArray(const std::string& fieldName,
+                              const std::string& fieldNameOrig,
+                              const py::array input_array,
+                              const SubCategory& categoryId)
+    {
+        if (hasKey(fieldName, categoryId))
+        {
+            auto dataObj = get(fieldName, categoryId);
+            dataObj->setNumpyArray(input_array);
+            dataSets_.at(categoryId).at(fieldName) = dataObj;
+        }
+        else if (hasKey(fieldNameOrig, categoryId))
+        {
+            auto dataObj = get(fieldNameOrig, categoryId);
+            dataObj->setNumpyArray(input_array);
+            dataSets_.at(categoryId).insert({fieldName, dataObj});
+        }
+        else
+        {
+        std::ostringstream errStr;
+            errStr << "ERROR: Either field called " << fieldNameOrig;
+            errStr << " or category " << makeSubCategoryStr(categoryId);
+            errStr << " does not exist.";
+            throw eckit::BadParameter(errStr.str());
+        }
+    }
+
+    py::array DataContainer::getNumpyArray(const std::string& fieldName,
+                                           const SubCategory& categoryId) const
+    {
+        auto dataObj = get(fieldName, categoryId);
+        return dataObj->getNumpyArray();
+    }
+#endif
+
     std::shared_ptr<DataObjectBase> DataContainer::getGroupByObject(
         const std::string& fieldName,
         const SubCategory& categoryId) const

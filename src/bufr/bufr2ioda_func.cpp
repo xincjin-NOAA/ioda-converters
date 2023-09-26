@@ -16,7 +16,8 @@ namespace Ingester
         parseFactory.registerObject<BufrParser>("bufr");
 
         std::unique_ptr<eckit::YAMLConfiguration>
-            yaml(new eckit::YAMLConfiguration(eckit::PathName(yamlPath)));
+            yaml(new eckit::YAMLConfiguration(yamlPath));
+           // yaml(new eckit::YAMLConfiguration(eckit::PathName(yamlPath)));
         auto data = nullptr;
         oops::Log::info() << " Start to process Bufr Data" << std::endl;
         if (yaml->has("observations"))

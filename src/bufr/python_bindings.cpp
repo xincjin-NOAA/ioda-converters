@@ -15,6 +15,7 @@
 #include "BufrParser/Query/ResultSet.h"
 #include "BufrParser/BufrParser.h"
 #include "IodaEncoder/IodaEncoder.h"
+#include "DataObject.h"
 #include "DataContainer.h"
 #include "bufr2ioda_func.h"
 
@@ -25,6 +26,7 @@ using Ingester::bufr::QuerySet;
 using Ingester::bufr::File;
 using Ingester::BufrParser;
 using Ingester::IodaEncoder;
+using Ingester::DataObjectBase;
 using Ingester::DataContainer;
 using Ingester::CategoryMap;
 using Ingester::parse1;
@@ -51,11 +53,17 @@ using Ingester::encode_save;
             .def("encode", &IodaEncoder::encode,
                            "Get the number of queries in the query set.");
 
+        py::class_<DataObjectBase, std::shared_ptr<DataObjectBase>>(m, "DataObjectBase");
+
         py::class_<DataContainer, std::shared_ptr<DataContainer>>(m, "DataContainer")
             .def(py::init<>())
             .def(py::init<const Ingester::CategoryMap&>())
             .def("add", &DataContainer::add, "Get the number of queries in the query set.")
-            .def("get", &DataContainer::get, "Add a query to the query set.");
+            .def("get", &DataContainer::get, "Add a query to the query set.")
+            .def("get_array", &DataContainer::getNumpyArray, "Add a query to the query set.")
+            .def("set_array", &DataContainer::setArray, "Add a query to the query set.")
+            .def("getCategoryMap", &DataContainer::getCategoryMap, "Add a query to the query set.")
+            .def("allSubCategories", &DataContainer::allSubCategories, "Add a query to the query set.");
 
         py::class_<QuerySet>(m, "QuerySet")
             .def(py::init<>())

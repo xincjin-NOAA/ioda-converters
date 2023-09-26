@@ -126,6 +126,9 @@ namespace Ingester
 #ifdef BUILD_PYTHON_BINDING
        /// \brief Return a numpy array of the data.
        virtual py::array getNumpyArray() const = 0;
+
+       /// \brief Set a numpy array of the data.
+       virtual void setNumpyArray(const py::array data_array) const = 0;
 #endif
 
         bool hasSamePath(const std::shared_ptr<DataObjectBase>& dataObject);
@@ -322,6 +325,31 @@ namespace Ingester
             numpyModule.attr("ma").attr("set_fill_value")(maskedArray, missingValue());
 
             return maskedArray;
+        }
+
+        void setNumpyArray(const py::array data_array) const final
+        {
+            return _setNumpyArray(data_array);
+        }
+
+
+        template<typename U = void>
+        void _setNumpyArray(const py::array data_array,
+            typename std::enable_if<std::is_same<T, std::string>::value, U>::type* = nullptr) const
+        {
+         auto buf_info = data_array.request();  // Get information about the NumPy array buffer
+         // T* ptr = static_cast<T*>(buf_info.ptr); // Pointer to the NumPy array data
+         // data_.assign(ptr, ptr + buf_info.size);
+        }
+
+
+        template<typename U = void>
+        void _setNumpyArray(const py::array data_array,
+            typename std::enable_if<std::is_arithmetic<T>::value, U>::type* = nullptr) const
+        {
+         auto buf_info = data_array.request();  // Get information about the NumPy array buffer
+         // T* ptr = static_cast<T*>(buf_info.ptr); // Pointer to the NumPy array data
+         // data_.assign(ptr, ptr + buf_info.size);
         }
 #endif
 

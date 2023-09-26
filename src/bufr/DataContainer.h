@@ -12,6 +12,16 @@
 #include <vector>
 #include <memory>
 
+#ifdef BUILD_PYTHON_BINDING
+    #include <pybind11/pybind11.h>
+    #include <pybind11/numpy.h>
+    #include <pybind11/stl.h>
+    #include <pybind11/stl_bind.h>
+
+    namespace py = pybind11;
+#endif
+
+
 #include "DataObject.h"
 #include "IngesterTypes.h"
 
@@ -81,6 +91,25 @@ namespace Ingester
 
         /// \brief Get the map of categories
         inline CategoryMap getCategoryMap() const { return categoryMap_; }
+
+#ifdef BUILD_PYTHON_BINDING
+
+
+        void setArray(const std::string& fieldName,
+                      const std::string& fieldNameOrig,
+                      //const py::array_t<double> input_array,
+                      const py::array input_array,
+                      const SubCategory& categoryId = {});
+
+        /// \brief Gets a numpy array for the resulting data for a specific field with a given
+        /// name grouped by the optional groupByFieldName.
+        /// \param fieldName The name of the field to get the data for.
+        /// \param groupByFieldName The name of the field to group the data by.
+        /// \param type The name of the type to convert the data to. Possible values are int, uint,
+        /// int32, uint32, int64, uint64, float, double
+        py::array getNumpyArray(const std::string& fieldName,
+                                const SubCategory& categoryId = {}) const;
+#endif
 
      private:
         /// Category map given (see constructor).
