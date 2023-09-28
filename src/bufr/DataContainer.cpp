@@ -61,32 +61,51 @@ namespace Ingester
 
 #ifdef BUILD_PYTHON_BINDING
 
- void DataContainer::setArray(const std::string& fieldName,
-                              const std::string& fieldNameOrig,
-                              const py::array input_array,
-                              const SubCategory& categoryId)
-    {
-        if (hasKey(fieldName, categoryId))
-        {
-            auto dataObj = get(fieldName, categoryId);
-            dataObj->setNumpyArray(input_array);
-            dataSets_.at(categoryId).at(fieldName) = dataObj;
-        }
-        else if (hasKey(fieldNameOrig, categoryId))
-        {
-            auto dataObj = get(fieldNameOrig, categoryId);
-            dataObj->setNumpyArray(input_array);
-            dataSets_.at(categoryId).insert({fieldName, dataObj});
-        }
-        else
-        {
-        std::ostringstream errStr;
-            errStr << "ERROR: Either field called " << fieldNameOrig;
-            errStr << " or category " << makeSubCategoryStr(categoryId);
-            errStr << " does not exist.";
-            throw eckit::BadParameter(errStr.str());
-        }
-    }
+
+
+ void DataContainer::set(const std::string& fieldName,
+                         py::array_t<float>& pyData,
+                         const SubCategory& categoryId)
+ {
+     std::shared_ptr<DataObjectBase> dataObj;
+
+     py::dtype dt = pyData.dtype();
+     std::string dtype_str = py::cast<std::string>(dt);
+     dataObj = makeObject(fieldName, pyData);
+     /* if (dtype_str[0] == 'U' || dtype_str[0] == 'S')
+     {
+        // dataObj = makeObject<std::string>(fieldName, pyData);
+     }
+     else if (pyData.dtype().is(py::dtype::of<float>()))
+     {
+         dataObj = makeObject<float>(fieldName, pyData);
+     }
+   /*  else if (pyData.dtype().is(py::dtype::of<double>()))
+     {
+         dataObj = makeObject<double>(fieldName, pyData);
+     }
+     else if (pyData.dtype().is(py::dtype::of<int>()))
+     {
+         dataObj = makeObject<int>(fieldName, pyData);
+     }
+     else if (pyData.dtype().is(py::dtype::of<int64_t>()))
+     {
+         dataObj = makeObject<int64_t>(fieldName, pyData);
+     }
+     else
+     {
+         throw eckit::BadParameter("ERROR: Unsupported data type.");
+     }*/
+
+     if (hasKey(fieldName, categoryId))
+     {
+         dataSets_.at(categoryId).at(fieldName) = dataObj;
+     }
+     else
+     {
+         dataSets_.at(categoryId).insert({fieldName, dataObj});
+     }
+ }
 
     py::array DataContainer::getNumpyArray(const std::string& fieldName,
                                            const SubCategory& categoryId) const

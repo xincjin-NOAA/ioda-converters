@@ -94,12 +94,59 @@ namespace Ingester
 
 #ifdef BUILD_PYTHON_BINDING
 
+        void set(const std::string& fieldName,
+                 py::array_t<float>& pyData,
+                 const SubCategory& categoryId = {});
 
-        void setArray(const std::string& fieldName,
-                      const std::string& fieldNameOrig,
-                      //const py::array_t<double> input_array,
-                      const py::array input_array,
-                      const SubCategory& categoryId = {});
+        //template<typename T>
+        std::shared_ptr<DataObjectBase> makeObject(const std::string& fieldName,
+                                                   py::array_t<float>& pyData,
+                                                   float dummy = 0)
+        {
+            if (!py::isinstance<py::array_t<float>>(pyData))
+            {
+                throw std::runtime_error("DataContainer::makeObject: Type mismatch");
+            }
+
+            auto dataObj = std::make_shared<DataObject<float>>();
+            auto ptr = pyData.data();
+            auto strData = std::vector<float> (ptr, ptr + pyData.size());
+
+            dataObj->setFieldName(fieldName);
+            dataObj->setRawData(std::move(strData));
+            dataObj->setDims(std::vector<int> (pyData.shape(), pyData.shape() + pyData.ndim()));
+
+            return dataObj;
+        }
+
+       /* template<>
+        std::shared_ptr<DataObjectBase> makeObject<std::string>(const std::string& fieldName,
+                                                                const py::array& pyData,
+                                                                T dummy = "")
+       {
+            py::dtype dt = pyData.dtype();
+            std::string dtype_str = py::cast<std::string>(dt);
+            if (dtype_str[0] != 'U' && dtype_str[0] != 'S')
+            {
+                throw std::runtime_error("DataContainer::makeObject: Type mismatch");
+            }
+
+            auto dataObj = std::make_shared<DataObject<std::string>>();
+
+            std::vector<std::string> strVec(pyData.size());
+            for (size_t i = 0; i < pyData.size(); i++)
+            {
+                strVec[i] = py::cast<std::string>(pyData[i]);
+            }
+
+            dataObj->setFieldName(fieldName);
+            dataObj->setRawData(std::move(strVec));
+            dataObj->setDims(std::vector<int> (pyData.shape(), pyData.shape() + pyData.ndim()));
+
+            return dataObj;
+       }
+*/
+
 
         /// \brief Gets a numpy array for the resulting data for a specific field with a given
         /// name grouped by the optional groupByFieldName.
