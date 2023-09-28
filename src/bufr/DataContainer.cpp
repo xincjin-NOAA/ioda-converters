@@ -46,6 +46,7 @@ namespace Ingester
     std::shared_ptr<DataObjectBase> DataContainer::get(const std::string& fieldName,
                                                        const SubCategory& categoryId) const
     {
+        oops::Log::warning() << " into object" << fieldName << makeSubCategoryStr(categoryId) << std::endl;
         if (!hasKey(fieldName, categoryId))
         {
             std::ostringstream errStr;
@@ -55,7 +56,7 @@ namespace Ingester
 
             throw eckit::BadParameter(errStr.str());
         }
-
+        oops::Log::warning() << " get object" << std::endl;
         return dataSets_.at(categoryId).at(fieldName);
     }
 

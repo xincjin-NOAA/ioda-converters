@@ -243,17 +243,22 @@ namespace Ingester
                     }
                 }
             }
+            oops::Log::warning() << " Write all the other Variables  " << std::endl;
 
             // Write all the other Variables
             for (const auto& varDesc : description_.getVariables())
             {
+                oops::Log::warning() << " Write Variable:  " << varDesc.name << std::endl;
                 std::vector<ioda::Dimensions_t> chunks;
                 auto dimensions = std::vector<ioda::Variable>();
+                oops::Log::warning() << " Write Variable: obj " << std::endl;
                 auto dataObject = dataContainer->get(varDesc.source, categories);
+                oops::Log::warning() << " Write Variable: obj after " << std::endl;
                 for (size_t dimIdx = 0; dimIdx < dataObject->getDims().size(); dimIdx++)
                 {
+                    oops::Log::warning() << " Write Variable: into obj " << std::endl;
                     auto dimPath = dataObject->getDimPaths()[dimIdx];
-
+                    oops::Log::warning() << " Write Variable: dim " << std::endl;
                     NamedPathDims namedPathDims;
                     if (dimIdx == 0)
                     {
@@ -266,7 +271,7 @@ namespace Ingester
 
                     auto dimVar = obsGroup.vars[dimForDimPath(dimPath, namedPathDims).name];
                     dimensions.push_back(dimVar);
-
+                    oops::Log::warning() << " Write Variable: dimvar " << std::endl;
                     if (dimIdx < varDesc.chunks.size())
                     {
                         chunks.push_back(std::min(dimVar.getChunkSizes()[0],
@@ -277,7 +282,7 @@ namespace Ingester
                         chunks.push_back(dimVar.getChunkSizes()[0]);
                     }
                 }
-
+                oops::Log::warning() << " Write Variable:  " << varDesc.name << std::endl;
                 auto var = dataObject->createVariable(obsGroup,
                                                       varDesc.name,
                                                       dimensions,
