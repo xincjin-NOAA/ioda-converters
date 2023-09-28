@@ -24,7 +24,7 @@
 
 #include "DataObject.h"
 #include "IngesterTypes.h"
-
+#include "oops/util/Logger.h"
 
 namespace Ingester
 {
@@ -95,22 +95,24 @@ namespace Ingester
 #ifdef BUILD_PYTHON_BINDING
 
         void set(const std::string& fieldName,
-                 py::array_t<float>& pyData,
+                 const py::array& pyData,
                  const SubCategory& categoryId = {});
 
-        //template<typename T>
+   template<typename T>
         std::shared_ptr<DataObjectBase> makeObject(const std::string& fieldName,
-                                                   py::array_t<float>& pyData,
-                                                   float dummy = 0)
+                                                   const py::array& pyData,
+                                                   T dummy = T())
         {
-            if (!py::isinstance<py::array_t<float>>(pyData))
+
+            oops::Log::info() << " Inside makeobject" << std::endl;
+            if (!pyData.dtype().is(py::dtype::of<T>()))
             {
                 throw std::runtime_error("DataContainer::makeObject: Type mismatch");
             }
 
-            auto dataObj = std::make_shared<DataObject<float>>();
-            auto ptr = pyData.data();
-            auto strData = std::vector<float> (ptr, ptr + pyData.size());
+            auto dataObj = std::make_shared<DataObject<T>>();
+            auto ptr = static_cast<const T*>(pyData.data());
+            auto strData = std::vector<T>(ptr,  ptr + pyData.size());
 
             dataObj->setFieldName(fieldName);
             dataObj->setRawData(std::move(strData));
@@ -119,10 +121,10 @@ namespace Ingester
             return dataObj;
         }
 
-       /* template<>
+      /*  template<>
         std::shared_ptr<DataObjectBase> makeObject<std::string>(const std::string& fieldName,
                                                                 const py::array& pyData,
-                                                                T dummy = "")
+                                                                std::string dummy)
        {
             py::dtype dt = pyData.dtype();
             std::string dtype_str = py::cast<std::string>(dt);
@@ -144,8 +146,7 @@ namespace Ingester
             dataObj->setDims(std::vector<int> (pyData.shape(), pyData.shape() + pyData.ndim()));
 
             return dataObj;
-       }
-*/
+       }*/
 
 
         /// \brief Gets a numpy array for the resulting data for a specific field with a given

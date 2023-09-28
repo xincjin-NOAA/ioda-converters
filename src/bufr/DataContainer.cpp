@@ -62,25 +62,27 @@ namespace Ingester
 #ifdef BUILD_PYTHON_BINDING
 
 
-
  void DataContainer::set(const std::string& fieldName,
-                         py::array_t<float>& pyData,
+                         const py::array& pyData,
                          const SubCategory& categoryId)
  {
      std::shared_ptr<DataObjectBase> dataObj;
-
+    oops::Log::info() << " Start to set Data" << std::endl;
      py::dtype dt = pyData.dtype();
-     std::string dtype_str = py::cast<std::string>(dt);
-     dataObj = makeObject(fieldName, pyData);
-     /* if (dtype_str[0] == 'U' || dtype_str[0] == 'S')
-     {
-        // dataObj = makeObject<std::string>(fieldName, pyData);
-     }
-     else if (pyData.dtype().is(py::dtype::of<float>()))
+    // std::string dtype_str = py::cast<std::string>(dt);
+    // if (dtype_str[0] == 'U' || dtype_str[0] == 'S')
+    // {
+
+       //  dataObj = makeObject<std::string>(fieldName, pyData);
+     //}
+     //else
+
+     oops::Log::info() << " Start to set  different type of Data" << std::endl;
+     if (pyData.dtype().is(py::dtype::of<float>()))
      {
          dataObj = makeObject<float>(fieldName, pyData);
      }
-   /*  else if (pyData.dtype().is(py::dtype::of<double>()))
+     else if (pyData.dtype().is(py::dtype::of<double>()))
      {
          dataObj = makeObject<double>(fieldName, pyData);
      }
@@ -95,7 +97,7 @@ namespace Ingester
      else
      {
          throw eckit::BadParameter("ERROR: Unsupported data type.");
-     }*/
+     }
 
      if (hasKey(fieldName, categoryId))
      {
